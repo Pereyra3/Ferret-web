@@ -1,0 +1,16 @@
+{% extends "store_ops/base.html" %}
+{% block title %}Inventario{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Existencias por tienda</h1>
+<a class="btn btn-outline-secondary mb-3" href="{% url 'stock_adjust' %}">Ajuste manual</a>
+<table class="table table-striped bg-white shadow-sm">
+  <thead><tr><th>Producto</th><th>Cantidad</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr><td>{{ r.product.sku }} — {{ r.product.name }}</td><td>{{ r.quantity }}</td></tr>
+  {% empty %}
+    <tr><td colspan="2">Sin movimientos de stock aún.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

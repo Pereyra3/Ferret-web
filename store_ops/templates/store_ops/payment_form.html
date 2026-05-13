@@ -1,0 +1,10 @@
+{% extends "store_ops/base.html" %}
+{% block title %}Pago proveedor{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Pago a proveedor</h1>
+<form method="post" class="card p-4 shadow-sm">
+  {% csrf_token %}
+  {{ form.as_p }}
+  <button class="btn btn-primary" type="submit">Registrar pago</button>
+</form>
+{% endblock %}

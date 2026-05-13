@@ -1,0 +1,123 @@
+{% extends "store_ops/base.html" %}
+{% block title %}Dashboard — Ferretería{% endblock %}
+{% block content %}
+<h1 class="h3 mb-3">Dashboard</h1>
+<p class="text-muted">Una sola fuente operativa: ventas, compras, inventario y analítica. El cierre al sistema corporativo es <strong>solo ventas</strong> (sin inventario allí).</p>
+
+<form class="row g-2 mb-4" method="get" id="rangeForm">
+  <div class="col-auto">
+    <label class="form-label">Desde</label>
+    <input type="date" name="from" class="form-control" value="{{ range_from|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto">
+    <label class="form-label">Hasta</label>
+    <input type="date" name="to" class="form-control" value="{{ range_to|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto d-flex align-items-end">
+    <button class="btn btn-primary" type="submit">Aplicar rango</button>
+  </div>
+</form>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Ventas</span>
+        <div class="btn-group btn-group-sm" role="group">
+          <button type="button" class="btn btn-outline-secondary gran-btn active" data-gran="day">Día</button>
+          <button type="button" class="btn btn-outline-secondary gran-btn" data-gran="month">Mes</button>
+          <button type="button" class="btn btn-outline-secondary gran-btn" data-gran="year">Año</button>
+        </div>
+      </div>
+      <div class="card-body"><canvas id="salesChart" height="120"></canvas></div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-3">
+      <div class="card-header">Balance proveedores (saldo estimado)</div>
+      <div class="card-body"><canvas id="suppliersChart" height="200"></canvas></div>
+    </div>
+  </div>
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header">Movimiento de productos (unidades vendidas en el rango)</div>
+      <div class="card-body"><canvas id="productsChart" height="100"></canvas></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const from = params.get('from') || '{{ range_from|date:"Y-m-d" }}';
+  const to = params.get('to') || '{{ range_to|date:"Y-m-d" }}';
+  let granularity = 'day';
+
+  function qs() {
+    return `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&granularity=${granularity}`;
+  }
+
+  let salesChart, suppliersChart, productsChart;
+
+  async function loadSales() {
+    const res = await fetch(`{% url 'api_sales_series' %}?${qs()}`);
+    const data = await res.json();
+    const ctx = document.getElementById('salesChart');
+    if (salesChart) salesChart.destroy();
+    salesChart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: data.labels, datasets: [{ label: 'Ventas', data: data.values, borderColor: '#0d6efd', tension: 0.2 }]},
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+
+  async function loadSuppliers() {
+    const res = await fetch(`{% url 'api_suppliers_balance' %}?${qs()}`);
+    const data = await res.json();
+    const labels = data.suppliers.map(s => s.name);
+    const values = data.suppliers.map(s => s.balance);
+    const ctx = document.getElementById('suppliersChart');
+    if (suppliersChart) suppliersChart.destroy();
+    suppliersChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{ label: 'Saldo', data: values, backgroundColor: '#6c757d' }]
+      },
+      options: { indexAxis: 'y', responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+
+  async function loadProducts() {
+    const res = await fetch(`{% url 'api_products_movement' %}?${qs()}`);
+    const data = await res.json();
+    const labels = data.products.map(p => p.sku + ' ' + p.name);
+    const values = data.products.map(p => p.qty);
+    const ctx = document.getElementById('productsChart');
+    if (productsChart) productsChart.destroy();
+    productsChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ label: 'Unidades', data: values, backgroundColor: '#198754' }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+
+  async function reloadAll() {
+    await Promise.all([loadSales(), loadSuppliers(), loadProducts()]);
+  }
+
+  document.querySelectorAll('.gran-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.gran-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      granularity = btn.dataset.gran;
+      loadSales();
+    });
+  });
+
+  document.addEventListener('DOMContentLoaded', reloadAll);
+})();
+</script>
+{% endblock %}
