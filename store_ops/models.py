@@ -8,13 +8,13 @@ from django.db.models.functions import Coalesce
 
 
 class Store(models.Model):
-    name = models.CharField("Nombre", max_length=120)
-    code = models.SlugField("Código", unique=True)
-    is_default = models.BooleanField("Tienda por defecto", default=False)
+    name = models.CharField("Name", max_length=120)
+    code = models.SlugField("Code", unique=True)
+    is_default = models.BooleanField("Default store", default=False)
 
     class Meta:
-        verbose_name = "Tienda"
-        verbose_name_plural = "Tiendas"
+        verbose_name = "Store"
+        verbose_name_plural = "Stores"
         ordering = ["name"]
 
     def __str__(self) -> str:
@@ -22,18 +22,18 @@ class Store(models.Model):
 
 
 class Supplier(models.Model):
-    name = models.CharField("Proveedor", max_length=200)
+    name = models.CharField("Name", max_length=200)
     opening_balance = models.DecimalField(
-        "Saldo inicial (deuda)",
+        "Opening balance (payable)",
         max_digits=14,
         decimal_places=2,
         default=0,
-        help_text="Positivo = adeudo previo a este sistema.",
+        help_text="Positive = amount owed before this system.",
     )
 
     class Meta:
-        verbose_name = "Proveedor"
-        verbose_name_plural = "Proveedores"
+        verbose_name = "Supplier"
+        verbose_name_plural = "Suppliers"
         ordering = ["name"]
 
     def __str__(self) -> str:
@@ -67,19 +67,26 @@ class Supplier(models.Model):
 
 
 class Product(models.Model):
-    sku = models.CharField("SKU / código", max_length=64, unique=True)
-    name = models.CharField("Nombre", max_length=255)
-    category = models.CharField("Categoría", max_length=120, blank=True)
+    sku = models.CharField("SKU / barcode", max_length=64, unique=True)
+    name = models.CharField("Name", max_length=255)
+    category = models.CharField("Category", max_length=120, blank=True)
+    list_price = models.DecimalField(
+        "Suggested list price",
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        help_text="Used when scanning at POS; can be overridden on the line.",
+    )
     reorder_min = models.DecimalField(
-        "Stock mínimo alerta",
+        "Reorder alert minimum",
         max_digits=14,
         decimal_places=3,
         default=0,
     )
 
     class Meta:
-        verbose_name = "Producto"
-        verbose_name_plural = "Productos"
+        verbose_name = "Product"
+        verbose_name_plural = "Products"
         ordering = ["name"]
 
     def __str__(self) -> str:
@@ -91,13 +98,13 @@ class Product(models.Model):
 
 
 class StockLevel(models.Model):
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, verbose_name="Tienda")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Producto")
-    quantity = models.DecimalField("Cantidad", max_digits=14, decimal_places=3, default=0)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, verbose_name="Store")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Product")
+    quantity = models.DecimalField("Quantity", max_digits=14, decimal_places=3, default=0)
 
     class Meta:
-        verbose_name = "Existencia"
-        verbose_name_plural = "Existencias"
+        verbose_name = "Stock level"
+        verbose_name_plural = "Stock levels"
         constraints = [
             models.UniqueConstraint(fields=["store", "product"], name="uniq_stock_store_product"),
         ]
@@ -113,23 +120,23 @@ class StockMovement(models.Model):
         ADJUSTMENT = "adjustment", "Ajuste manual"
         SALE_VOID = "sale_void", "Reversión venta"
 
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, verbose_name="Tienda")
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Producto")
-    quantity_delta = models.DecimalField("Delta cantidad", max_digits=14, decimal_places=3)
-    reason = models.CharField("Motivo", max_length=20, choices=Reason.choices)
-    reference = models.CharField("Referencia", max_length=120, blank=True)
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, verbose_name="Store")
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, verbose_name="Product")
+    quantity_delta = models.DecimalField("Quantity delta", max_digits=14, decimal_places=3)
+    reason = models.CharField("Reason", max_length=20, choices=Reason.choices)
+    reference = models.CharField("Reference", max_length=120, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
-        verbose_name="Usuario",
+        verbose_name="User",
     )
 
     class Meta:
-        verbose_name = "Movimiento de inventario"
-        verbose_name_plural = "Movimientos de inventario"
+        verbose_name = "Stock movement"
+        verbose_name_plural = "Stock movements"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
@@ -147,35 +154,35 @@ class Sale(models.Model):
         DRAFT = "draft", "Borrador"
         CONFIRMED = "confirmed", "Confirmada"
 
-    store = models.ForeignKey(Store, on_delete=models.PROTECT, verbose_name="Tienda")
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, verbose_name="Store")
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        verbose_name="Usuario",
+        verbose_name="User",
     )
-    created_at = models.DateTimeField("Fecha", auto_now_add=True)
+    created_at = models.DateTimeField("Date", auto_now_add=True)
     status = models.CharField(
-        "Estado",
+        "Status",
         max_length=20,
         choices=Status.choices,
         default=Status.CONFIRMED,
     )
     payment_method = models.CharField(
-        "Forma de pago",
+        "Payment method",
         max_length=20,
         choices=PaymentMethod.choices,
         default=PaymentMethod.CASH,
     )
-    notes = models.CharField("Notas", max_length=500, blank=True)
-    stock_applied = models.BooleanField("Inventario aplicado", default=False)
+    notes = models.CharField("Notes", max_length=500, blank=True)
+    stock_applied = models.BooleanField("Stock applied", default=False)
 
     class Meta:
-        verbose_name = "Venta"
-        verbose_name_plural = "Ventas"
+        verbose_name = "Sale"
+        verbose_name_plural = "Sales"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Venta #{self.pk} {self.store}"
+        return f"Sale #{self.pk} {self.store}"
 
     def total(self):
         line_total = ExpressionWrapper(
@@ -193,15 +200,15 @@ class SaleLine(models.Model):
         Sale,
         related_name="lines",
         on_delete=models.CASCADE,
-        verbose_name="Venta",
+        verbose_name="Sale",
     )
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Producto")
-    quantity = models.DecimalField("Cantidad", max_digits=14, decimal_places=3)
-    unit_price = models.DecimalField("Precio unit.", max_digits=14, decimal_places=2)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Product")
+    quantity = models.DecimalField("Quantity", max_digits=14, decimal_places=3)
+    unit_price = models.DecimalField("Unit price", max_digits=14, decimal_places=2)
 
     class Meta:
-        verbose_name = "Línea de venta"
-        verbose_name_plural = "Líneas de venta"
+        verbose_name = "Sale line"
+        verbose_name_plural = "Sale lines"
 
     @property
     def line_total(self):
@@ -211,25 +218,25 @@ class SaleLine(models.Model):
 
 
 class Purchase(models.Model):
-    store = models.ForeignKey(Store, on_delete=models.PROTECT, verbose_name="Tienda")
-    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, verbose_name="Proveedor")
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, verbose_name="Store")
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, verbose_name="Supplier")
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        verbose_name="Usuario",
+        verbose_name="User",
     )
-    reference = models.CharField("Referencia / factura", max_length=120, blank=True)
+    reference = models.CharField("Reference / invoice", max_length=120, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    stock_applied = models.BooleanField("Inventario aplicado", default=False)
+    stock_applied = models.BooleanField("Stock applied", default=False)
 
     class Meta:
-        verbose_name = "Compra a proveedor"
-        verbose_name_plural = "Compras a proveedor"
+        verbose_name = "Supplier purchase"
+        verbose_name_plural = "Supplier purchases"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Compra #{self.pk} {self.supplier}"
+        return f"Purchase #{self.pk} {self.supplier}"
 
     def total(self):
         line_total = ExpressionWrapper(
@@ -247,43 +254,43 @@ class PurchaseLine(models.Model):
         Purchase,
         related_name="lines",
         on_delete=models.CASCADE,
-        verbose_name="Compra",
+        verbose_name="Purchase",
     )
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Producto")
-    quantity = models.DecimalField("Cantidad", max_digits=14, decimal_places=3)
-    unit_cost = models.DecimalField("Costo unit.", max_digits=14, decimal_places=2)
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, verbose_name="Product")
+    quantity = models.DecimalField("Quantity", max_digits=14, decimal_places=3)
+    unit_cost = models.DecimalField("Unit cost", max_digits=14, decimal_places=2)
 
     class Meta:
-        verbose_name = "Línea de compra"
-        verbose_name_plural = "Líneas de compra"
+        verbose_name = "Purchase line"
+        verbose_name_plural = "Purchase lines"
 
 
 class SupplierPayment(models.Model):
-    store = models.ForeignKey(Store, on_delete=models.PROTECT, verbose_name="Tienda")
-    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, verbose_name="Proveedor")
+    store = models.ForeignKey(Store, on_delete=models.PROTECT, verbose_name="Store")
+    supplier = models.ForeignKey(Supplier, on_delete=models.PROTECT, verbose_name="Supplier")
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
-        verbose_name="Usuario",
+        verbose_name="User",
     )
-    amount = models.DecimalField("Monto", max_digits=14, decimal_places=2)
-    note = models.CharField("Nota", max_length=500, blank=True)
-    reference = models.CharField("Referencia", max_length=120, blank=True)
+    amount = models.DecimalField("Amount", max_digits=14, decimal_places=2)
+    note = models.CharField("Note", max_length=500, blank=True)
+    reference = models.CharField("Reference", max_length=120, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        verbose_name = "Pago a proveedor"
-        verbose_name_plural = "Pagos a proveedor"
+        verbose_name = "Supplier payment"
+        verbose_name_plural = "Supplier payments"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
-        return f"Pago {self.supplier} {self.amount}"
+        return f"Payment {self.supplier} {self.amount}"
 
 
 class DayClose(models.Model):
-    store = models.ForeignKey(Store, on_delete=models.CASCADE, verbose_name="Tienda")
-    date = models.DateField("Día operativo")
+    store = models.ForeignKey(Store, on_delete=models.CASCADE, verbose_name="Store")
+    date = models.DateField("Business date")
     closed_at = models.DateTimeField(auto_now_add=True)
     export_pdf_path = models.CharField(max_length=500, blank=True)
     export_csv_path = models.CharField(max_length=500, blank=True)
@@ -296,11 +303,11 @@ class DayClose(models.Model):
     )
 
     class Meta:
-        verbose_name = "Cierre de día"
-        verbose_name_plural = "Cierres de día"
+        verbose_name = "Day close"
+        verbose_name_plural = "Day closes"
         constraints = [
             models.UniqueConstraint(fields=["store", "date"], name="uniq_dayclose_store_date"),
         ]
 
     def __str__(self) -> str:
-        return f"Cierre {self.store} {self.date}"
+        return f"Close {self.store} {self.date}"

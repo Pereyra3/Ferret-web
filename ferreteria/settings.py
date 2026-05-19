@@ -1,5 +1,5 @@
 """
-Django settings for ferretería (hardware store) internal web app.
+Django settings for the hardware store internal web app.
 Optimized for small deployment: SQLite by default, single process.
 """
 import os
@@ -31,8 +31,21 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "rest_framework",
     "store_ops.apps.StoreOpsConfig",
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
+    ],
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
+    ],
+    "DEFAULT_RENDERER_CLASSES": [
+        "rest_framework.renderers.JSONRenderer",
+    ],
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -95,7 +108,7 @@ STATICFILES_DIRS = [BASE_DIR / "store_ops" / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"
-LOGIN_REDIRECT_URL = "dashboard"
+LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
 
 EOD_EXPORT_DIR = Path(os.environ.get("EOD_EXPORT_DIR", str(BASE_DIR / "exports")))

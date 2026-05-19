@@ -1,11 +1,30 @@
 {% extends "store_ops/base.html" %}
 {% block title %}{{ title }}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">{{ title }}</h1>
-<form method="post" class="card p-4 shadow-sm">
+<header class="ft-page-header">
+  <div>
+    <h1>{{ title }}</h1>
+    <p class="ft-page-lead">SKU, categoría, precio sugerido y umbral de reorden.</p>
+  </div>
+  <div class="ft-page-actions">
+    <a href="{% url 'product_list' %}"><i class="bi bi-arrow-left"></i> Volver al listado</a>
+  </div>
+</header>
+
+<form method="post" class="ft-form card ft-form-card">
   {% csrf_token %}
-  {{ form.as_p }}
-  <button class="btn btn-primary" type="submit">Guardar</button>
-  <a class="btn btn-link" href="{% url 'product_list' %}">Cancelar</a>
+  {% include "store_ops/partials/ft_form_errors.html" with form=form %}
+  <div class="ft-form-body">
+    <p class="ft-form-section-title"><i class="bi bi-box-seam"></i> Datos del producto</p>
+    <div class="ft-form-grid">
+      {% for field in form %}
+        {% include "store_ops/partials/ft_field.html" with field=field %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="ft-form-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-check-lg me-1"></i> Guardar</button>
+    <a class="btn btn-outline-secondary" href="{% url 'product_list' %}">Cancelar</a>
+  </div>
 </form>
 {% endblock %}

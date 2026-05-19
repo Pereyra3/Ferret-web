@@ -1,0 +1,112 @@
+/* Profit dashboard */
+
+.ft-profit-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 1.25rem;
+  padding: 1.35rem 1.5rem;
+  margin-bottom: 1.35rem;
+  border-radius: var(--ft-radius);
+  border: 1px solid rgba(47, 85, 99, 0.12);
+  background: linear-gradient(135deg, #fff 0%, rgba(246, 248, 244, 0.98) 100%);
+  box-shadow: var(--ft-shadow);
+}
+
+.ft-profit-hero.ft-profit-positive {
+  border-left: 4px solid #2d7a4f;
+}
+
+.ft-profit-hero.ft-profit-negative {
+  border-left: 4px solid #b42318;
+}
+
+.ft-profit-hero-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ft-teal-muted);
+}
+
+.ft-profit-hero-value {
+  margin: 0;
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ft-ink);
+}
+
+.ft-profit-positive .ft-profit-hero-value {
+  color: #1a6b45;
+}
+
+.ft-profit-negative .ft-profit-hero-value {
+  color: #b42318;
+}
+
+.ft-profit-hero-formula {
+  margin: 0.5rem 0 0;
+  font-size: 0.88rem;
+  color: var(--ft-ink-soft);
+}
+
+.ft-profit-hero-side {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
+  min-width: 10rem;
+  padding-left: 1rem;
+  border-left: 1px solid rgba(47, 85, 99, 0.1);
+}
+
+.ft-profit-hero-side strong {
+  display: block;
+  font-size: 1.15rem;
+  color: var(--ft-ink);
+}
+
+.ft-kpi-card.ft-kpi-out::before {
+  background: var(--ft-accent);
+}
+
+.ft-kpi-out .ft-kpi-icon {
+  background: var(--ft-accent-glow);
+  color: var(--ft-accent);
+}
+
+.ft-kpi-card.ft-kpi-profit::before {
+  background: #2d7a4f;
+}
+
+.ft-kpi-profit .ft-kpi-icon {
+  background: rgba(45, 122, 79, 0.12);
+  color: #2d7a4f;
+}
+
+.ft-kpi-card.ft-kpi-loss::before {
+  background: #b42318;
+}
+
+.ft-kpi-loss .ft-kpi-icon {
+  background: rgba(180, 35, 24, 0.1);
+  color: #b42318;
+}
+
+.ft-payment-out {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ft-accent);
+}
+
+.ft-profit-note {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.ft-profit-kpis {
+  margin-bottom: 1.35rem;
+}

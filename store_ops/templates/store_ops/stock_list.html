@@ -1,16 +1,72 @@
 {% extends "store_ops/base.html" %}
-{% block title %}Inventario{% endblock %}
+{% block title %}{% if low_only %}Inventario — stock bajo{% else %}Inventario{% endif %}{% endblock %}
 {% block content %}
-<h1 class="h3 mb-3">Existencias por tienda</h1>
-<a class="btn btn-outline-secondary mb-3" href="{% url 'stock_adjust' %}">Ajuste manual</a>
-<table class="table table-striped bg-white shadow-sm">
-  <thead><tr><th>Producto</th><th>Cantidad</th></tr></thead>
-  <tbody>
-  {% for r in rows %}
-    <tr><td>{{ r.product.sku }} — {{ r.product.name }}</td><td>{{ r.quantity }}</td></tr>
-  {% empty %}
-    <tr><td colspan="2">Sin movimientos de stock aún.</td></tr>
-  {% endfor %}
-  </tbody>
-</table>
+<header class="ft-page-header">
+  <div>
+    <h1>{% if low_only %}Productos con stock bajo{% else %}Existencias por tienda{% endif %}</h1>
+    <p class="ft-page-lead">
+      {% if low_only %}
+        Solo productos en o por debajo del mínimo de reorden configurado.
+      {% else %}
+        Cantidades actuales en {{ default_store.name|default:"la tienda" }}.
+      {% endif %}
+    </p>
+  </div>
+  <div class="ft-page-actions d-flex flex-wrap gap-2">
+    {% if low_only %}
+      <a href="{% url 'stock_list' %}"><i class="bi bi-list-ul"></i> Ver todo el inventario</a>
+    {% else %}
+      <a href="{% url 'stock_list' %}?low=1"><i class="bi bi-exclamation-triangle"></i> Solo stock bajo</a>
+    {% endif %}
+    <a href="{% url 'stock_adjust' %}"><i class="bi bi-sliders"></i> Ajuste manual</a>
+  </div>
+</header>
+
+{% if low_only %}
+<div class="alert alert-warning border-0 shadow-sm mb-3" role="status">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  Mostrando <strong>{{ rows|length }}</strong> producto{{ rows|length|pluralize:"s" }} con existencia en o por debajo del mínimo.
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 ft-lines-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Producto</th>
+          <th class="text-end">Existencia</th>
+          <th class="text-end">Mínimo</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr class="{% if r.is_low %}table-warning{% endif %}">
+          <td class="text-muted">{{ r.product.sku }}</td>
+          <td>{{ r.product.name }}</td>
+          <td class="text-end fw-semibold">{{ r.quantity }}</td>
+          <td class="text-end text-muted">{{ r.reorder_min }}</td>
+          <td class="text-end">
+            {% if r.is_low %}
+              <span class="badge text-bg-warning text-dark">Bajo</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-4">
+            {% if low_only %}
+              No hay productos con stock bajo en este momento.
+            {% else %}
+              Sin movimientos de stock aún.
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endblock %}
