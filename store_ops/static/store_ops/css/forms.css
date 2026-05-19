@@ -1,0 +1,500 @@
+/* Form styles — complements shell.css */
+
+.ft-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.ft-page-header h1 {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.ft-page-header .ft-page-lead {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  color: var(--ft-ink-soft);
+  max-width: 42rem;
+  line-height: 1.45;
+}
+
+.ft-page-header .ft-page-actions a {
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: var(--ft-teal-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--ft-radius-sm);
+  border: 1px solid rgba(47, 85, 99, 0.15);
+  background: rgba(255, 255, 255, 0.7);
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ft-page-header .ft-page-actions a:hover {
+  color: var(--ft-teal);
+  border-color: rgba(47, 85, 99, 0.28);
+  background: #fff;
+}
+
+/* Card contenedor */
+.ft-form-card {
+  border: 1px solid rgba(47, 85, 99, 0.1);
+  border-radius: var(--ft-radius);
+  box-shadow: var(--ft-shadow);
+  background: linear-gradient(165deg, #fff 0%, rgba(250, 252, 248, 0.98) 100%);
+  overflow: hidden;
+}
+
+.ft-form-card.ft-form-card-accent {
+  border-top: 3px solid var(--ft-accent);
+}
+
+.ft-form-body {
+  padding: 1.35rem 1.5rem 0.5rem;
+}
+
+.ft-form-section {
+  padding: 0 1.5rem 1rem;
+}
+
+.ft-form-section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ft-teal-muted);
+  margin: 0 0 0.85rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(47, 85, 99, 0.08);
+}
+
+.ft-form-section-title i {
+  font-size: 1rem;
+  color: var(--ft-teal);
+}
+
+.ft-form-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.1rem 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .ft-form-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .ft-field-span-2 {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Campo */
+.ft-field {
+  position: relative;
+}
+
+.ft-label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ft-ink);
+  margin-bottom: 0.4rem;
+  letter-spacing: -0.01em;
+}
+
+.ft-required {
+  color: var(--ft-accent);
+  margin-left: 0.15rem;
+}
+
+.ft-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.ft-field-icon {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2.65rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ft-teal-muted);
+  font-size: 1.05rem;
+  pointer-events: none;
+  z-index: 2;
+  transition: color 0.18s ease;
+}
+
+.ft-input-wrap .ft-control,
+.ft-input-wrap .form-select.ft-control {
+  padding-left: 2.65rem;
+  border-radius: var(--ft-radius-sm);
+  border: 1px solid rgba(47, 85, 99, 0.18);
+  background: rgba(255, 255, 255, 0.92);
+  font-size: 0.92rem;
+  min-height: 2.65rem;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.ft-input-wrap .ft-control:focus,
+.ft-input-wrap .form-select.ft-control:focus {
+  border-color: var(--ft-teal);
+  box-shadow: 0 0 0 3px var(--ft-teal-soft);
+  background: #fff;
+}
+
+.ft-input-wrap.ft-focused .ft-field-icon {
+  color: var(--ft-teal);
+}
+
+.ft-input-wrap.ft-has-value .ft-field-icon {
+  color: var(--ft-teal-muted);
+}
+
+.ft-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.76rem;
+  color: var(--ft-ink-soft);
+  line-height: 1.35;
+}
+
+.ft-field-error {
+  margin: 0.35rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b42318;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.ft-field-invalid .ft-control,
+.ft-field-invalid .form-select.ft-control {
+  border-color: #e57373;
+  background: #fff8f8;
+}
+
+.ft-field-invalid .ft-field-icon {
+  color: #c25628;
+}
+
+/* Checkbox / switch card */
+.ft-field-check {
+  grid-column: 1 / -1;
+}
+
+.ft-check-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--ft-radius-sm);
+  border: 1px solid rgba(47, 85, 99, 0.12);
+  background: rgba(255, 255, 255, 0.75);
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.ft-check-card:hover {
+  border-color: rgba(47, 85, 99, 0.22);
+  background: #fff;
+}
+
+.ft-check-card:has(.ft-check:checked) {
+  border-color: rgba(47, 85, 99, 0.35);
+  background: var(--ft-teal-soft);
+  box-shadow: inset 0 0 0 1px rgba(47, 85, 99, 0.08);
+}
+
+.ft-check {
+  width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.15rem;
+  flex-shrink: 0;
+  accent-color: var(--ft-teal);
+  cursor: pointer;
+}
+
+.ft-check-label {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ft-ink);
+  cursor: pointer;
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* Pills para forma de pago */
+.ft-payment-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.15rem;
+}
+
+.ft-payment-pill {
+  border: 1px solid rgba(47, 85, 99, 0.18);
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ft-ink);
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 0.45rem 0.85rem;
+  border-radius: 999px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.12s ease;
+}
+
+.ft-payment-pill:hover {
+  border-color: var(--ft-teal-muted);
+  background: #fff;
+}
+
+.ft-payment-pill.ft-active {
+  background: linear-gradient(135deg, var(--ft-teal) 0%, #264653 100%);
+  border-color: transparent;
+  color: #f4faf8;
+  box-shadow: 0 2px 8px rgba(47, 85, 99, 0.25);
+}
+
+.ft-payment-pill:focus-visible {
+  outline: 2px solid var(--ft-accent);
+  outline-offset: 2px;
+}
+
+.ft-field-payment .ft-input-wrap {
+  display: none;
+}
+
+/* Acciones */
+.ft-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 1rem 1.5rem 1.35rem;
+  border-top: 1px solid rgba(47, 85, 99, 0.08);
+  background: linear-gradient(180deg, rgba(246, 248, 244, 0.5) 0%, rgba(240, 243, 236, 0.85) 100%);
+}
+
+.ft-form-actions .btn {
+  font-weight: 600;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--ft-radius-sm);
+}
+
+.ft-form-actions .btn-primary {
+  box-shadow: 0 2px 8px rgba(47, 85, 99, 0.2);
+}
+
+.ft-form-actions .btn-outline-secondary {
+  border-color: rgba(47, 85, 99, 0.25);
+  color: var(--ft-teal);
+}
+
+.ft-form-alert {
+  margin: 1rem 1.5rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: var(--ft-radius-sm);
+  font-size: 0.88rem;
+  font-weight: 500;
+}
+
+/* Sale barcode scan bar */
+.ft-scan-card {
+  border: 1px dashed rgba(47, 85, 99, 0.28);
+  border-radius: var(--ft-radius);
+  background: linear-gradient(135deg, rgba(47, 85, 99, 0.04) 0%, rgba(194, 86, 40, 0.05) 100%);
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.ft-scan-card .card-body {
+  padding: 1.25rem 1.5rem;
+}
+
+.ft-scan-input-group {
+  border-radius: var(--ft-radius-sm);
+  overflow: hidden;
+  box-shadow: var(--ft-shadow);
+}
+
+.ft-scan-input-group .input-group-text {
+  background: var(--ft-teal);
+  color: #f4faf8;
+  border: none;
+  font-size: 1.25rem;
+  padding: 0 1rem;
+}
+
+.ft-scan-input-group .form-control {
+  border: 1px solid rgba(47, 85, 99, 0.15);
+  font-size: 1.05rem;
+  min-height: 3rem;
+  font-weight: 500;
+}
+
+.ft-scan-input-group .form-control:focus {
+  border-color: var(--ft-teal);
+  box-shadow: 0 0 0 3px var(--ft-teal-soft);
+}
+
+.ft-scan-feedback {
+  min-height: 1.35rem;
+  font-weight: 500;
+}
+
+.ft-scan-feedback.ft-success {
+  color: #1a6b45;
+}
+
+.ft-scan-feedback.ft-error {
+  color: #b42318;
+}
+
+.ft-scan-feedback.ft-muted {
+  color: var(--ft-ink-soft);
+}
+
+/* Line items table */
+.ft-lines-panel {
+  margin: 0 1.5rem 1rem;
+  border: 1px solid rgba(47, 85, 99, 0.1);
+  border-radius: var(--ft-radius-sm);
+  overflow: hidden;
+  background: #fff;
+}
+
+.ft-lines-table {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.ft-lines-table thead th {
+  background: rgba(47, 85, 99, 0.06);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ft-teal-muted);
+  border-bottom-width: 1px;
+  padding: 0.65rem 0.75rem;
+  white-space: nowrap;
+}
+
+.ft-lines-table tbody td {
+  padding: 0.55rem 0.75rem;
+  vertical-align: middle;
+}
+
+.ft-lines-table tfoot td {
+  background: rgba(47, 85, 99, 0.05);
+  font-size: 0.95rem;
+  padding: 0.75rem;
+}
+
+.ft-lines-table .form-control,
+.ft-lines-table .form-select {
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.ft-lines-table select.form-select {
+  min-width: 12rem;
+}
+
+.ft-line-product-name {
+  font-weight: 600;
+  color: var(--ft-ink);
+}
+
+.ft-line-product-meta {
+  font-size: 0.76rem;
+  color: var(--ft-ink-soft);
+}
+
+.ft-line-subtotal {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ft-teal);
+}
+
+.ft-btn-line-remove {
+  border: none;
+  background: transparent;
+  color: var(--ft-ink-soft);
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.ft-btn-line-remove:hover {
+  color: #b42318;
+  background: rgba(180, 35, 24, 0.08);
+}
+
+.ft-btn-add-line {
+  margin: 0 1.5rem 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ft-teal);
+  border: 1px dashed rgba(47, 85, 99, 0.3);
+  background: rgba(255, 255, 255, 0.8);
+  padding: 0.45rem 0.9rem;
+  border-radius: var(--ft-radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.ft-btn-add-line:hover {
+  background: var(--ft-teal-soft);
+  border-color: var(--ft-teal-muted);
+}
+
+/* Field entrance animation */
+.ft-form.ft-form-ready .ft-field {
+  animation: ftFieldIn 0.35s ease backwards;
+}
+
+.ft-form.ft-form-ready .ft-field:nth-child(1) { animation-delay: 0.02s; }
+.ft-form.ft-form-ready .ft-field:nth-child(2) { animation-delay: 0.05s; }
+.ft-form.ft-form-ready .ft-field:nth-child(3) { animation-delay: 0.08s; }
+.ft-form.ft-form-ready .ft-field:nth-child(4) { animation-delay: 0.11s; }
+.ft-form.ft-form-ready .ft-field:nth-child(5) { animation-delay: 0.14s; }
+.ft-form.ft-form-ready .ft-field:nth-child(n+6) { animation-delay: 0.17s; }
+
+@keyframes ftFieldIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

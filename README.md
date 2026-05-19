@@ -1,13 +1,13 @@
-# Ferretería — aplicación web interna (Django)
+# Ferretería — internal web app (Django)
 
-Panel para **una tienda al inicio** (multi-sucursal preparado en modelo de datos con `store_id` / `Store`). Operación diaria: **productos, ventas, compras a proveedor, pagos a proveedor, inventario y dashboards**. El **cierre (EOD)** genera **solo ventas** en PDF y CSV para transcribir al sistema corporativo; **no** exporta movimientos de inventario al legado.
+Operations panel for **one store initially** (multi-branch ready via `Store` / `store_id`). Daily work: **products, sales, supplier purchases, supplier payments, inventory, and profit dashboard**. **End-of-day (EOD)** exports **sales only** as PDF and CSV for transcription into the corporate system; it does **not** export inventory to the legacy system.
 
-## Requisitos
+## Requirements
 
-- Python 3.11+ recomendado  
-- Windows 11 / PC modesto: SQLite por defecto (poca RAM). Opcional: PostgreSQL más adelante.
+- Python 3.11+ recommended  
+- Windows 11 / modest PC: SQLite by default (low RAM). PostgreSQL optional later.
 
-## Instalación rápida
+## Quick start
 
 ```powershell
 cd ferreteria-web
@@ -22,16 +22,24 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Abra `http://127.0.0.1:8000/` e inicie sesión. En **Admin** (`/admin/`) cree **proveedores** antes de registrar compras o pagos.
+Open `http://127.0.0.1:8000/` and sign in. In **Admin** (`/admin/`), create **suppliers** before recording purchases or payments.
 
-## Regla de negocio (una sola fuente)
+### Demo data (optional)
 
-Mientras usen esta app como operación principal, **eviten registrar las mismas ventas el mismo día en el sistema viejo** para no duplicar cifras. El sistema viejo queda alimentado al cierre con **transcripción asistida** (PDF/CSV) o, más adelante, RPA **solo de ventas**.
+```powershell
+python manage.py seed_demo
+python manage.py seed_demo_sales
+python manage.py seed_demo_payments
+```
 
-## Cierre del día (EOD)
+## Business rule (single source of truth)
 
-- **Web:** menú **Cierre día**.  
-- **Consola (Programador de tareas de Windows):**
+While this app is the main daily system, **avoid entering the same day’s sales in the old system** to prevent duplicate figures. The legacy system is fed at close of day via **assisted transcription** (PDF/CSV) or, later, RPA for **sales only**.
+
+## End of day (EOD)
+
+- **Web:** menu **Cierre día**.  
+- **CLI (Windows Task Scheduler):**
 
 ```powershell
 cd ferreteria-web
@@ -40,34 +48,50 @@ python manage.py eod_export --date 2026-05-13
 python manage.py eod_export --date 2026-05-13 --force
 ```
 
-Los archivos salen en la carpeta `exports/` del proyecto (o la ruta de `EOD_EXPORT_DIR` en `.env`).
+Files are written under the project `exports/` folder (or `EOD_EXPORT_DIR` in `.env`).
 
-## Dashboards
+## Profit dashboard
 
-- Ventas agregadas por **día / mes / año** (selector en pantalla).  
-- **Proveedores:** saldo estimado (compras − pagos + saldo inicial).  
-- **Productos:** unidades vendidas en el rango de fechas.
+`/dashboard/` shows **real profit**: confirmed sales minus supplier payments (cash flow), plus purchases registered in the period for operating margin. Charts support day / month / year grouping.
 
-## Multi-sucursal (fase posterior)
+## Multi-store (later)
 
-Hoy la UI usa la tienda **por defecto** (`DEFAULT_STORE_CODE`, típicamente `principal`). Para segunda tienda: crear otra fila `Store` en admin, más adelante selector de contexto y permisos por local.
+The UI uses the **default store** (`DEFAULT_STORE_CODE`, usually `principal`). For a second branch: add another `Store` in admin; later add store selector and per-location permissions.
 
-## GitHub (repo personal)
+## GitHub (personal repo)
 
-1. Cree un repositorio **privado** en GitHub.  
-2. En la carpeta del proyecto: `git init`, `git remote add origin ...`, `git add`, `git commit`, `git push`.  
-3. Active **2FA** en GitHub; no suba `.env`. El código en Git **no sustituye** backups de la base de datos (`data/db.sqlite3` o dumps).
+1. Create a **private** repository on GitHub.  
+2. In the project folder: `git init`, `git remote add origin ...`, `git add`, `git commit`, `git push`.  
+3. Enable **2FA** on GitHub; do not commit `.env`. Code in Git **does not replace** database backups (`data/db.sqlite3` or dumps).
 
 ## RPA (Playwright / Selenium)
 
-Opcional y **solo para pantallas de ventas** del sistema web viejo; **no** automatizar inventario en el legado. Mantener el PDF/CSV como respaldo.
+Optional and **for legacy sales screens only**; do **not** automate inventory in the old system. Keep PDF/CSV as fallback.
 
-## Despliegue en el PC de la ferretería
+## Deployment on the store PC
 
-- Servicio con **NSSM** o **PM2** ejecutando `gunicorn`/`waitress` + `collectstatic`, o `runserver` solo en pruebas.  
-- Copia programada de `data/db.sqlite3` y de `exports/`.  
-- Evite Docker Desktop + muchas apps en **8 GB RAM** en la misma sesión.
+- Service with **NSSM** or **PM2** running `waitress` / `gunicorn` + `collectstatic`, or `runserver` for tests only.  
+- Scheduled copy of `data/db.sqlite3` and `exports/`.  
+- Avoid Docker Desktop plus many apps on **8 GB RAM** in the same session.
 
-## Inspiración “TechTool”
+## Tests
 
-Interfaz tipo herramienta interna: **Django + plantillas + Bootstrap + Chart.js**, sin SPA obligatoria, fácil de mantener en equipo pequeño.
+Uses **pytest** and **pytest-django**. Tests live in `store_ops/tests/`:
+
+- `test_models.py` — `store_ops/models.py`
+- `test_views.py` — `store_ops/views.py` (HTTP + helpers)
+
+```powershell
+pip install -r requirements.txt
+pytest
+```
+
+Coverage is enforced at **100%** on `models.py` and `views.py` only (`.coveragerc`):
+
+```powershell
+pytest --cov-report=html
+```
+
+## UI language
+
+Store-facing templates and messages are **Spanish** (`es-es`). Developer-facing code comments, management commands, and Django admin field labels are **English**.

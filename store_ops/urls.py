@@ -1,9 +1,11 @@
-from django.urls import path
+from django.urls import include, path
 
 from . import views
 
 urlpatterns = [
-    path("", views.dashboard, name="dashboard"),
+    path("api/store/", include("store_ops.api.urls", namespace="store_api")),
+    path("", views.home, name="home"),
+    path("dashboard/", views.dashboard, name="dashboard"),
     path("productos/", views.product_list, name="product_list"),
     path("productos/nuevo/", views.product_create, name="product_create"),
     path("productos/<int:pk>/editar/", views.product_edit, name="product_edit"),
@@ -14,7 +16,5 @@ urlpatterns = [
     path("compras/nueva/", views.purchase_create, name="purchase_create"),
     path("pagos/nuevo/", views.payment_create, name="payment_create"),
     path("cierre/", views.eod_view, name="eod"),
-    path("api/dashboard/sales/", views.api_sales_series, name="api_sales_series"),
-    path("api/dashboard/suppliers/", views.api_suppliers_balance, name="api_suppliers_balance"),
-    path("api/dashboard/products/", views.api_products_movement, name="api_products_movement"),
+    path("api/dashboard/profit/", views.api_profit_series, name="api_profit_series"),
 ]

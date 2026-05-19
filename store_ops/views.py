@@ -8,6 +8,7 @@ from django.db.models.functions import Coalesce, TruncDay, TruncMonth, TruncYear
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.utils.functional import SimpleLazyObject, empty
 from django.views.decorators.http import require_GET
 
 from .forms import (
@@ -20,17 +21,34 @@ from .forms import (
     StockAdjustForm,
     SupplierPaymentForm,
 )
-from .models import DayClose, Product, Purchase, Sale, StockLevel, Supplier
+from .models import (
+    DayClose,
+    Product,
+    Purchase,
+    PurchaseLine,
+    Sale,
+    SaleLine,
+    StockLevel,
+    SupplierPayment,
+)
 from .services.eod import run_eod
 from .services.stock import apply_adjustment, apply_purchase, apply_sale
 
 
 def _store(request):
+    """Resolve default store (middleware attaches a SimpleLazyObject)."""
     store = getattr(request, "default_store", None)
-    if callable(store):
-        store = store()
     if store is None:
-        raise ValueError("No hay tienda por defecto. Ejecute: python manage.py setup_defaults")
+        raise ValueError("No default store. Sign in or run: python manage.py setup_defaults")
+    if isinstance(store, SimpleLazyObject):
+        if store._wrapped is empty:
+            store._setup()
+        store = store._wrapped
+    if store is None:
+        raise ValueError(
+            "No store in database (DEFAULT_STORE_CODE or is_default). "
+            "Run: python manage.py setup_defaults"
+        )
     return store
 
 
@@ -52,108 +70,236 @@ def _parse_range(request):
     return d_from, d_to
 
 
-@login_required
-def dashboard(request):
-    d_from, d_to = _parse_range(request)
-    return render(
-        request,
-        "store_ops/dashboard.html",
-        {"range_from": d_from, "range_to": d_to},
-    )
-
-
-def _trunc_for_granularity(granularity: str):
-    if granularity == "month":
-        return TruncMonth("created_at")
-    if granularity == "year":
-        return TruncYear("created_at")
-    return TruncDay("created_at")
-
-
-@login_required
-@require_GET
-def api_sales_series(request):
-    store = _store(request)
-    d_from, d_to = _parse_range(request)
-    granularity = request.GET.get("granularity", "day")
+def _range_bounds(d_from, d_to):
     start = timezone.make_aware(datetime.combine(d_from, time.min))
     end = timezone.make_aware(datetime.combine(d_to, time.max))
+    return start, end
 
-    line_total = ExpressionWrapper(
+
+def _line_total_expr():
+    return ExpressionWrapper(
         F("quantity") * F("unit_price"),
         output_field=DecimalField(max_digits=20, decimal_places=4),
     )
-    trunc = _trunc_for_granularity(granularity)
-    qs = (
-        SaleLine.objects.filter(
-            sale__store=store,
-            sale__status=Sale.Status.CONFIRMED,
-            sale__created_at__gte=start,
-            sale__created_at__lte=end,
-        )
-        .annotate(bucket=trunc)
+
+
+def _cost_line_expr():
+    return ExpressionWrapper(
+        F("quantity") * F("unit_cost"),
+        output_field=DecimalField(max_digits=20, decimal_places=4),
+    )
+
+
+def _zero_decimal():
+    return Value(0, output_field=DecimalField(max_digits=20, decimal_places=4))
+
+
+def _bucket_totals(qs, trunc_field: str, sum_expr, granularity: str):
+    trunc = _trunc_for_granularity(granularity, trunc_field)
+    rows = (
+        qs.annotate(bucket=trunc)
         .values("bucket")
-        .annotate(total=Coalesce(Sum(line_total), Value(0, output_field=DecimalField(max_digits=20, decimal_places=4))))
+        .annotate(total=Coalesce(Sum(sum_expr), _zero_decimal()))
         .order_by("bucket")
     )
-    labels = []
-    values = []
-    for row in qs:
-        b = row["bucket"]
-        if hasattr(b, "date"):
-            labels.append(b.date().isoformat())
-        elif hasattr(b, "isoformat"):
-            labels.append(b.isoformat())
-        else:
-            labels.append(str(b))
-        values.append(float(row["total"]))
-    return JsonResponse({"labels": labels, "values": values, "granularity": granularity})
+    out = {}
+    for row in rows:
+        label = _format_bucket_label(row["bucket"], granularity)
+        out[label] = float(row["total"] or 0)
+    return out
+
+
+def _profit_totals(store, start, end):
+    line_total = _line_total_expr()
+    cost_expr = _cost_line_expr()
+
+    sales_total = Decimal(
+        _confirmed_sale_lines(store, start, end).aggregate(
+            t=Coalesce(Sum(line_total), _zero_decimal())
+        )["t"]
+        or 0
+    )
+    payments_total = Decimal(
+        SupplierPayment.objects.filter(
+            store=store,
+            created_at__gte=start,
+            created_at__lte=end,
+        ).aggregate(t=Coalesce(Sum("amount"), _zero_decimal()))["t"]
+        or 0
+    )
+    purchases_total = Decimal(
+        PurchaseLine.objects.filter(
+            purchase__store=store,
+            purchase__created_at__gte=start,
+            purchase__created_at__lte=end,
+        ).aggregate(t=Coalesce(Sum(cost_expr), _zero_decimal()))["t"]
+        or 0
+    )
+
+    net_cash = sales_total - payments_total
+    net_operating = sales_total - purchases_total
+    margin_cash = (net_cash / sales_total * 100) if sales_total else Decimal(0)
+    margin_operating = (net_operating / sales_total * 100) if sales_total else Decimal(0)
+
+    return {
+        "sales_total": sales_total,
+        "payments_total": payments_total,
+        "purchases_total": purchases_total,
+        "net_cash": net_cash,
+        "net_operating": net_operating,
+        "margin_cash": margin_cash,
+        "margin_operating": margin_operating,
+    }
+
+
+def _profit_series(store, start, end, granularity: str):
+    line_total = _line_total_expr()
+    cost_expr = _cost_line_expr()
+
+    sales_map = _bucket_totals(
+        _confirmed_sale_lines(store, start, end),
+        "sale__created_at",
+        line_total,
+        granularity,
+    )
+    payments_map = _bucket_totals(
+        SupplierPayment.objects.filter(store=store, created_at__gte=start, created_at__lte=end),
+        "created_at",
+        F("amount"),
+        granularity,
+    )
+    purchases_map = _bucket_totals(
+        PurchaseLine.objects.filter(
+            purchase__store=store,
+            purchase__created_at__gte=start,
+            purchase__created_at__lte=end,
+        ),
+        "purchase__created_at",
+        cost_expr,
+        granularity,
+    )
+
+    labels = sorted(set(sales_map) | set(payments_map) | set(purchases_map))
+    sales = []
+    payments = []
+    purchases = []
+    profit_cash = []
+    profit_operating = []
+
+    for label in labels:
+        s = sales_map.get(label, 0.0)
+        p = payments_map.get(label, 0.0)
+        c = purchases_map.get(label, 0.0)
+        sales.append(s)
+        payments.append(p)
+        purchases.append(c)
+        profit_cash.append(s - p)
+        profit_operating.append(s - c)
+
+    return {
+        "labels": labels,
+        "sales": sales,
+        "payments": payments,
+        "purchases": purchases,
+        "profit_cash": profit_cash,
+        "profit_operating": profit_operating,
+    }
+
+
+def _confirmed_sale_lines(store, start, end):
+    return SaleLine.objects.filter(
+        sale__store=store,
+        sale__status=Sale.Status.CONFIRMED,
+        sale__created_at__gte=start,
+        sale__created_at__lte=end,
+    )
+
+
+def _format_bucket_label(bucket, granularity: str) -> str:
+    if bucket is None:
+        return ""
+    if timezone.is_aware(bucket):
+        bucket = timezone.localtime(bucket)
+    if granularity == "year":
+        return str(bucket.year)
+    if granularity == "month":
+        return f"{bucket.year}-{bucket.month:02d}"
+    if hasattr(bucket, "date"):
+        return bucket.date().isoformat()
+    return str(bucket)
 
 
 @login_required
-@require_GET
-def api_suppliers_balance(request):
-    store = _store(request)
-    data = []
-    for s in Supplier.objects.all().order_by("name"):
-        data.append(
-            {
-                "name": s.name,
-                "balance": float(s.balance(store)),
-                "purchases": float(s.purchases_total(store)),
-                "payments": float(s.payments_total(store)),
-            }
-        )
-    return JsonResponse({"suppliers": data})
+def home(request):
+    return render(request, "store_ops/home.html")
+
+
+def _trunc_for_granularity(granularity: str, field: str = "sale__created_at"):
+    if granularity == "month":
+        return TruncMonth(field)
+    if granularity == "year":
+        return TruncYear(field)
+    return TruncDay(field)
 
 
 @login_required
-@require_GET
-def api_products_movement(request):
+def dashboard(request):
     store = _store(request)
     d_from, d_to = _parse_range(request)
-    start = timezone.make_aware(datetime.combine(d_from, time.min))
-    end = timezone.make_aware(datetime.combine(d_to, time.max))
-    line_qty = (
-        SaleLine.objects.filter(
-            sale__store=store,
-            sale__status=Sale.Status.CONFIRMED,
-            sale__created_at__gte=start,
-            sale__created_at__lte=end,
+    start, end = _range_bounds(d_from, d_to)
+    metrics = _profit_totals(store, start, end)
+
+    recent_sales = (
+        Sale.objects.filter(
+            store=store,
+            status=Sale.Status.CONFIRMED,
+            created_at__gte=start,
+            created_at__lte=end,
         )
-        .values("product_id", "product__sku", "product__name")
-        .annotate(qty=Coalesce(Sum("quantity"), Value(0, output_field=DecimalField(max_digits=20, decimal_places=4))))
-        .order_by("-qty")[:25]
+        .select_related("user")
+        .order_by("-created_at")[:8]
     )
-    items = [
+    recent_payments = (
+        SupplierPayment.objects.filter(store=store, created_at__gte=start, created_at__lte=end)
+        .select_related("supplier", "user")
+        .order_by("-created_at")[:8]
+    )
+
+    return render(
+        request,
+        "store_ops/dashboard.html",
         {
-            "sku": r["product__sku"],
-            "name": r["product__name"],
-            "qty": float(r["qty"]),
+            "range_from": d_from,
+            "range_to": d_to,
+            **metrics,
+            "recent_sales": recent_sales,
+            "recent_payments": recent_payments,
+        },
+    )
+
+
+@login_required
+@require_GET
+def api_profit_series(request):
+    store = _store(request)
+    d_from, d_to = _parse_range(request)
+    granularity = request.GET.get("granularity", "day")
+    start, end = _range_bounds(d_from, d_to)
+    data = _profit_series(store, start, end, granularity)
+    totals = _profit_totals(store, start, end)
+    return JsonResponse(
+        {
+            **data,
+            "granularity": granularity,
+            "totals": {
+                "sales": float(totals["sales_total"]),
+                "payments": float(totals["payments_total"]),
+                "purchases": float(totals["purchases_total"]),
+                "net_cash": float(totals["net_cash"]),
+                "net_operating": float(totals["net_operating"]),
+            },
         }
-        for r in line_qty
-    ]
-    return JsonResponse({"products": items})
+    )
 
 
 @login_required
@@ -207,21 +353,31 @@ def sale_create(request):
     store = _store(request)
     if request.method == "POST":
         form = SaleForm(request.POST)
-        formset = SaleLineFormSet(request.POST)
+        formset = SaleLineFormSet(request.POST, prefix="lines")
         if form.is_valid() and formset.is_valid():
-            sale = form.save(commit=False)
-            sale.store = store
-            sale.user = request.user
-            sale.status = Sale.Status.CONFIRMED
-            sale.save()
-            formset.instance = sale
-            formset.save()
-            apply_sale(sale, request.user)
-            messages.success(request, "Venta registrada e inventario actualizado.")
-            return redirect("sale_list")
+            filled = 0
+            for f in formset.forms:
+                d = getattr(f, "cleaned_data", None) or {}
+                if d.get("DELETE"):
+                    continue
+                if d.get("product"):
+                    filled += 1
+            if filled < 1:
+                messages.error(request, "Agregue al menos una línea de producto (escaneo o manual).")
+            else:
+                sale = form.save(commit=False)
+                sale.store = store
+                sale.user = request.user
+                sale.status = Sale.Status.CONFIRMED
+                sale.save()
+                formset.instance = sale
+                formset.save()
+                apply_sale(sale, request.user)
+                messages.success(request, "Venta registrada e inventario actualizado.")
+                return redirect("sale_list")
     else:
         form = SaleForm()
-        formset = SaleLineFormSet()
+        formset = SaleLineFormSet(prefix="lines")
     return render(request, "store_ops/sale_form.html", {"form": form, "formset": formset})
 
 
@@ -230,7 +386,7 @@ def purchase_create(request):
     store = _store(request)
     if request.method == "POST":
         form = PurchaseForm(request.POST)
-        formset = PurchaseLineFormSet(request.POST)
+        formset = PurchaseLineFormSet(request.POST, prefix="lines")
         if form.is_valid() and formset.is_valid():
             purchase = form.save(commit=False)
             purchase.store = store
@@ -243,7 +399,7 @@ def purchase_create(request):
             return redirect("dashboard")
     else:
         form = PurchaseForm()
-        formset = PurchaseLineFormSet()
+        formset = PurchaseLineFormSet(prefix="lines")
     return render(request, "store_ops/purchase_form.html", {"form": form, "formset": formset})
 
 
@@ -307,12 +463,48 @@ def eod_view(request):
     return render(request, "store_ops/eod.html", {"form": form, "closes": closes})
 
 
-@login_required
-def stock_list(request):
-    store = _store(request)
-    rows = (
+def _stock_rows(store, low_only: bool = False):
+    """Inventory rows: product, quantity, and reorder minimum."""
+    if low_only:
+        rows = []
+        for product in Product.objects.filter(reorder_min__gt=0).order_by("name"):
+            qty = product.stock_quantity(store)
+            if qty <= product.reorder_min:
+                rows.append(
+                    {
+                        "product": product,
+                        "quantity": qty,
+                        "reorder_min": product.reorder_min,
+                        "is_low": True,
+                    }
+                )
+        return rows
+
+    rows = []
+    for level in (
         StockLevel.objects.filter(store=store)
         .select_related("product")
         .order_by("product__name")
+    ):
+        product = level.product
+        rows.append(
+            {
+                "product": product,
+                "quantity": level.quantity,
+                "reorder_min": product.reorder_min,
+                "is_low": bool(product.reorder_min and level.quantity <= product.reorder_min),
+            }
+        )
+    return rows
+
+
+@login_required
+def stock_list(request):
+    store = _store(request)
+    low_only = request.GET.get("low") in ("1", "true", "yes")
+    rows = _stock_rows(store, low_only=low_only)
+    return render(
+        request,
+        "store_ops/stock_list.html",
+        {"rows": rows, "low_only": low_only},
     )
-    return render(request, "store_ops/stock_list.html", {"rows": rows})

@@ -1,0 +1,10 @@
+[run]
+branch = false
+include =
+    */store_ops/models.py
+    */store_ops/views.py
+
+[report]
+fail_under = 100
+show_missing = true
+skip_covered = false

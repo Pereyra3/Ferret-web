@@ -27,7 +27,7 @@ class SupplierAdmin(admin.ModelAdmin):
 
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
-    list_display = ("sku", "name", "category", "reorder_min")
+    list_display = ("sku", "name", "category", "list_price", "reorder_min")
     search_fields = ("sku", "name")
 
 
