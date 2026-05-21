@@ -1,0 +1,74 @@
+{% extends "core/base.html" %}
+{% load money_tags %}
+{% block title %}Ventas{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Ventas</h1>
+    <p class="ft-page-lead">Tickets confirmados y pedidos pendientes de cobro.</p>
+  </div>
+  <div class="ft-page-actions">
+    <a class="btn btn-success" href="{% url 'sale_create' %}"><i class="bi bi-plus-lg me-1"></i> Nueva venta</a>
+  </div>
+</header>
+
+{% if drafts %}
+<div class="alert alert-info border-0 shadow-sm mb-3" role="status">
+  <i class="bi bi-bookmark me-1"></i>
+  <strong>{{ drafts|length }}</strong> venta{{ drafts|length|pluralize:"s" }} pendiente{{ drafts|length|pluralize:"s" }} —
+  puede seguir agregando artículos y cobrar desde <strong>Editar</strong>.
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 ft-lines-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          {% if show_store_column %}<th>Tienda</th>{% endif %}
+          <th>Fecha</th>
+          <th>Estado</th>
+          <th>Pago</th>
+          <th class="text-end">Total</th>
+          <th class="text-end">Cambio</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in sales %}
+        <tr class="{% if s.status == 'draft' %}table-info{% endif %}">
+          <td>{{ s.id }}</td>
+          {% if show_store_column %}<td>{{ s.store.name }}</td>{% endif %}
+          <td>{{ s.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            {% if s.status == 'draft' %}
+              <span class="badge text-bg-info text-dark">Pendiente</span>
+            {% else %}
+              <span class="badge text-bg-success">Confirmada</span>
+            {% endif %}
+          </td>
+          <td>{{ s.get_payment_method_display }}</td>
+          <td class="text-end fw-semibold">{{ s.total|mxn }}</td>
+          <td class="text-end text-muted">
+            {% if s.change_amount is not None %}{{ s.change_amount|mxn }}{% else %}—{% endif %}
+          </td>
+          <td class="text-end text-nowrap">
+            {% if s.status == 'draft' %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'sale_edit' s.pk %}">Editar</a>
+              <a class="btn btn-sm btn-primary" href="{% url 'sale_checkout' s.pk %}">Cobrar</a>
+            {% else %}
+              <a class="btn btn-sm btn-outline-secondary" href="{% url 'print_sale' s.pk %}" target="_blank" rel="noopener">
+                <i class="bi bi-printer"></i>
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="{% if show_store_column %}8{% else %}7{% endif %}" class="text-center text-muted py-4">Sin ventas.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

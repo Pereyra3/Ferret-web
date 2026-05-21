@@ -1,0 +1,107 @@
+{% extends "core/base.html" %}
+{% block title %}Inicio — Ferretería{% endblock %}
+{% block content %}
+<div class="ft-home-welcome">
+  <div class="ft-home-avatar" aria-hidden="true"><i class="bi bi-shop"></i></div>
+  <p class="ft-home-greet">
+    Bienvenido{% if user.is_authenticated %}, <span>{{ user.username }}</span>{% else %} al panel{% endif %}
+  </p>
+  <p class="ft-home-hint">
+    {% if store_selection_label %}{{ store_selection_label }} — {% elif default_store %}{{ default_store.name }} — {% endif %}
+    Elija un módulo. El cierre al sistema corporativo exporta <strong>solo ventas</strong>.
+  </p>
+  {% if not has_store_access %}
+  <div class="alert alert-warning mt-3" role="alert">
+    No tiene ninguna tienda asignada. Un administrador debe vincular su usuario a una sucursal en
+    <a href="/admin/core/store/">Admin → Tiendas</a>.
+  </div>
+  {% endif %}
+</div>
+
+<div class="ft-tiles">
+  {% if perms.sales.view_sale and perms.warehouse.view_supplierpayment %}
+  <a class="ft-tile ft-tile-primary" href="{% url 'dashboard' %}">
+    <i class="bi bi-piggy-bank"></i>
+    <h2>Ganancias reales</h2>
+    <p>Ventas, pagos a proveedor y utilidad neta del periodo.</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.view_product %}
+  <a class="ft-tile" href="{% url 'product_list' %}">
+    <i class="bi bi-box-seam"></i>
+    <h2>Productos</h2>
+    <p>Catálogo, precios y edición de artículos.</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.view_stocklevel %}
+  <a class="ft-tile" href="{% url 'stock_list' %}">
+    <i class="bi bi-clipboard-data"></i>
+    <h2>Inventario</h2>
+    <p>Existencias por producto y ajustes manuales.</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.view_stocktransfer %}
+  <a class="ft-tile" href="{% url 'stock_transfer_list' %}">
+    <i class="bi bi-inbox"></i>
+    <h2>Transferencias</h2>
+    <p>Solicitudes pendientes y aceptación en tienda destino.</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.add_stocktransfer %}
+  <a class="ft-tile" href="{% url 'stock_transfer_create' %}">
+    <i class="bi bi-arrow-left-right"></i>
+    <h2>Nueva transferencia</h2>
+    <p>Enviar material a otra sucursal (requiere aceptación).</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.change_stocklevel %}
+  <a class="ft-tile" href="{% url 'stock_import' %}">
+    <i class="bi bi-file-earmark-spreadsheet"></i>
+    <h2>Importar Excel</h2>
+    <p>Carga masiva de existencias (.xlsx).</p>
+  </a>
+  {% endif %}
+  {% if perms.sales.view_sale %}
+  <a class="ft-tile" href="{% url 'sale_list' %}">
+    <i class="bi bi-receipt"></i>
+    <h2>Ventas</h2>
+    <p>Historial de tickets y consulta rápida.</p>
+  </a>
+  {% endif %}
+  {% if perms.sales.add_sale %}
+  <a class="ft-tile ft-tile-primary" href="{% url 'sale_create' %}">
+    <i class="bi bi-cart-plus"></i>
+    <h2>Nueva venta</h2>
+    <p>Registro en mostrador — uso diario.</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.add_purchase %}
+  <a class="ft-tile" href="{% url 'purchase_create' %}">
+    <i class="bi bi-truck"></i>
+    <h2>Compra a proveedor</h2>
+    <p>Entrada de mercancía e inventario.</p>
+  </a>
+  {% endif %}
+  {% if perms.warehouse.add_supplierpayment %}
+  <a class="ft-tile" href="{% url 'payment_create' %}">
+    <i class="bi bi-cash-stack"></i>
+    <h2>Pago a proveedor</h2>
+    <p>Abonos y liquidaciones de saldo.</p>
+  </a>
+  {% endif %}
+  {% if perms.sales.add_dayclose %}
+  <a class="ft-tile" href="{% url 'eod' %}">
+    <i class="bi bi-moon-stars"></i>
+    <h2>Cierre del día</h2>
+    <p>PDF y CSV (solo ventas) para el sistema corporativo.</p>
+  </a>
+  {% endif %}
+  {% if user.is_staff %}
+  <a class="ft-tile" href="/admin/">
+    <i class="bi bi-gear"></i>
+    <h2>Administración</h2>
+    <p>Usuarios, proveedores, tiendas y datos maestros.</p>
+  </a>
+  {% endif %}
+</div>
+{% endblock %}

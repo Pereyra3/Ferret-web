@@ -1,0 +1,51 @@
+{% extends "core/ticket_print_base.html" %}
+{% load money_tags %}
+{% block title %}Ticket — ventas del día{% endblock %}
+{% block ticket %}
+<header class="ticket-header">
+  <h1>CIERRE DE VENTAS</h1>
+  <p>{{ store.name }}</p>
+  <p>Día: {{ business_date|date:"d/m/Y" }}</p>
+  <p>Impreso: {{ printed_at|date:"d/m/Y H:i" }}</p>
+</header>
+<hr class="ticket-rule">
+
+<div class="ticket-line">
+  <span class="label">Ventas (tickets)</span>
+  <span class="value">{{ summary.count_sales }}</span>
+</div>
+<hr class="ticket-rule">
+
+{% if summary.lines %}
+{% for line in summary.lines %}
+<div class="ticket-item">
+  <div class="name">{{ line.product.name|truncatechars:28 }}</div>
+  <div class="sku">#{{ line.sale_id }} · {{ line.product.sku }}</div>
+  <div class="ticket-line">
+    <span class="label">{{ line.quantity }} × {{ line.unit_price|mxn }}</span>
+    <span class="value">{{ line.line_total|mxn }}</span>
+  </div>
+  <div class="ticket-line" style="font-size:10px;">
+    <span class="label">{{ line.sale.get_payment_method_display }}</span>
+    <span class="value">{{ line.sale.created_at|date:"H:i" }}</span>
+  </div>
+</div>
+{% endfor %}
+<hr class="ticket-rule">
+{% else %}
+<p class="ticket-empty">Sin ventas confirmadas este día.</p>
+{% endif %}
+
+{% for pm, val in summary.by_payment.items %}
+<div class="ticket-line">
+  <span class="label">Total {{ pm }}</span>
+  <span class="value">{{ val|mxn }}</span>
+</div>
+{% endfor %}
+<div class="ticket-total ticket-line">
+  <span class="label">TOTAL DEL DÍA</span>
+  <span class="value">{{ summary.total|mxn }}</span>
+</div>
+
+<footer class="ticket-footer">Solo ventas — transcribir al sistema corporativo</footer>
+{% endblock %}

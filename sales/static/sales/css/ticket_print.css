@@ -1,0 +1,144 @@
+/* Thermal receipt layout (58–80 mm). Use from browser Print → thermal printer. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body.ticket-body {
+  margin: 0;
+  padding: 8px;
+  font-family: "Consolas", "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #000;
+  background: #fff;
+  max-width: 80mm;
+}
+
+.ticket-actions {
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #999;
+}
+
+.ticket-actions button,
+.ticket-actions a {
+  font-family: system-ui, sans-serif;
+  font-size: 13px;
+  margin-right: 8px;
+}
+
+.ticket-store {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.ticket-store__name {
+  font-size: 14px;
+  font-weight: bold;
+  margin: 0 0 4px;
+}
+
+.ticket-store p {
+  margin: 2px 0;
+  font-size: 11px;
+  font-weight: normal;
+}
+
+.ticket-meta {
+  text-align: left;
+  margin-bottom: 8px;
+}
+
+.ticket-meta p {
+  margin: 2px 0;
+  font-size: 11px;
+}
+
+.ticket-rule {
+  border: none;
+  border-top: 1px dashed #000;
+  margin: 8px 0;
+}
+
+.ticket-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 2px 0;
+  word-break: break-word;
+}
+
+.ticket-line .label {
+  flex: 1;
+  min-width: 0;
+}
+
+.ticket-line .value {
+  flex-shrink: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ticket-line strong .value {
+  font-weight: bold;
+}
+
+.ticket-item {
+  margin: 6px 0;
+  padding-bottom: 4px;
+  border-bottom: 1px dotted #ccc;
+}
+
+.ticket-item:last-child {
+  border-bottom: none;
+}
+
+.ticket-item .name {
+  font-weight: bold;
+  margin-bottom: 2px;
+}
+
+.ticket-item .sku {
+  font-size: 10px;
+  color: #333;
+}
+
+.ticket-total {
+  font-size: 13px;
+  font-weight: bold;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 2px solid #000;
+}
+
+.ticket-footer {
+  text-align: center;
+  font-size: 10px;
+  margin-top: 12px;
+  color: #444;
+}
+
+.ticket-empty {
+  text-align: center;
+  padding: 16px 0;
+}
+
+@media print {
+  .ticket-actions {
+    display: none !important;
+  }
+
+  body.ticket-body {
+    padding: 0;
+    max-width: none;
+    width: 80mm;
+  }
+
+  @page {
+    margin: 2mm;
+    size: 80mm auto;
+  }
+}

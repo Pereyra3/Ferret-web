@@ -1,8 +1,15 @@
 [run]
 branch = false
 include =
-    */store_ops/models.py
-    */store_ops/views.py
+    */core/models.py
+    */core/views/*.py
+    */warehouse/models.py
+    */warehouse/views.py
+    */warehouse/inventory.py
+    */warehouse/services/*.py
+    */sales/models.py
+    */sales/views.py
+    */sales/sale_workflow.py
 
 [report]
 fail_under = 100

@@ -1,0 +1,54 @@
+{% extends "core/base.html" %}
+{% block title %}Selección de tiendas{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Tiendas visibles</h1>
+    <p class="ft-page-lead">
+      Elija qué sucursales incluir en listas, inventario y ganancias.
+      Las <strong>nuevas ventas, compras y cierres</strong> se registran en
+      <strong>{{ write_store.name }}</strong>
+      {% if uses_write_store_hint %}(tienda de trabajo por defecto){% endif %}.
+    </p>
+  </div>
+</header>
+
+<div class="card shadow-sm" style="max-width: 32rem;">
+  <div class="card-body">
+    <form method="post" action="{% url 'store_select' %}">
+      {% csrf_token %}
+      {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" name="select_all" id="select_all"
+               {% if all_selected %}checked{% endif %}
+               onchange="var c=document.querySelectorAll('.store-pick');c.forEach(function(el){el.disabled=this.checked;el.checked=false;}.bind(this))">
+        <label class="form-check-label fw-semibold" for="select_all">
+          Todas mis tiendas
+        </label>
+      </div>
+
+      <p class="text-muted small">O seleccione una o más:</p>
+      {% for s in stores %}
+      <div class="form-check">
+        <input class="form-check-input store-pick" type="checkbox" name="stores" value="{{ s.pk }}"
+               id="store_{{ s.pk }}"
+               {% if not all_selected and s.pk in selected_ids %}checked{% endif %}
+               {% if all_selected %}disabled{% endif %}>
+        <label class="form-check-label" for="store_{{ s.pk }}">
+          {{ s.name }}
+          {% if s.location %}<span class="text-muted small">— {{ s.location }}</span>{% endif %}
+        </label>
+      </div>
+      {% empty %}
+      <p class="text-muted">No hay tiendas. Cree una en <a href="/admin/core/store/">Admin</a>.</p>
+      {% endfor %}
+
+      <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Aplicar filtro</button>
+        <a class="btn btn-outline-secondary" href="{% url 'home' %}">Cancelar</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

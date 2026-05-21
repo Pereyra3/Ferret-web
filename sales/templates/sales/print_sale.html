@@ -1,0 +1,52 @@
+{% extends "core/ticket_print_base.html" %}
+{% load money_tags %}
+{% block title %}Ticket venta #{{ sale.id }}{% endblock %}
+{% block ticket %}
+<header class="ticket-store">
+  <p class="ticket-store__name">{{ store.name }}</p>
+  {% if store.location %}<p>{{ store.location }}</p>{% endif %}
+  {% if store.phone %}<p>Tel: {{ store.phone }}</p>{% endif %}
+  {% if store.rfc %}<p>RFC: {{ store.rfc }}</p>{% endif %}
+</header>
+<hr class="ticket-rule">
+
+<header class="ticket-meta">
+  <p>Ticket #{{ sale.id }}</p>
+  <p>{{ sale.created_at|date:"d/m/Y H:i" }}</p>
+  <p>Cajero: {{ sale.user.get_full_name|default:sale.user.username }}</p>
+</header>
+<hr class="ticket-rule">
+
+{% for line in lines %}
+<div class="ticket-item">
+  <div class="name">{{ line.product.name|truncatechars:28 }}</div>
+  <div class="sku">{{ line.product.sku }}</div>
+  <div class="ticket-line">
+    <span class="label">{{ line.quantity }} × {{ line.unit_price|mxn }}</span>
+    <span class="value">{{ line.line_total|mxn }}</span>
+  </div>
+</div>
+{% endfor %}
+
+<hr class="ticket-rule">
+<div class="ticket-line">
+  <span class="label">Pago</span>
+  <span class="value">{{ sale.get_payment_method_display }}</span>
+</div>
+<div class="ticket-total ticket-line">
+  <span class="label">TOTAL</span>
+  <span class="value">{{ sale.total|mxn }}</span>
+</div>
+{% if sale.amount_tendered is not None %}
+<div class="ticket-line">
+  <span class="label">Recibido</span>
+  <span class="value">{{ sale.amount_tendered|mxn }}</span>
+</div>
+<div class="ticket-line">
+  <strong><span class="label">CAMBIO</span></strong>
+  <span class="value"><strong>{{ sale.change_amount|mxn }}</strong></span>
+</div>
+{% endif %}
+
+<footer class="ticket-footer">Gracias por su compra</footer>
+{% endblock %}

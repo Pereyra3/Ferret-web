@@ -1,0 +1,124 @@
+{% extends "core/base.html" %}
+{% block title %}Importar inventario{% endblock %}
+{% block content %}
+<div class="ft-import-page">
+  <header class="ft-page-header">
+    <div class="ft-page-header-main">
+      <h1>Importar inventario desde Excel</h1>
+      <p class="ft-page-lead">
+        Carga masiva para la tienda <strong>{{ write_store.name }}</strong>
+        (tienda de trabajo según el filtro de sucursales).
+      </p>
+    </div>
+    <div class="ft-page-actions">
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'stock_import_sample' %}">
+        <i class="bi bi-download"></i> Descargar plantilla
+      </a>
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'stock_list' %}">
+        <i class="bi bi-arrow-left"></i> Inventario
+      </a>
+    </div>
+  </header>
+
+  <div class="row g-4 ft-import-layout">
+    <div class="col-lg-5">
+      <section class="card ft-import-guide shadow-sm h-100">
+        <div class="card-body">
+          <h2 class="h6 text-uppercase fw-bold text-secondary mb-3">
+            <i class="bi bi-info-circle me-1"></i> Formato del archivo
+          </h2>
+
+          <ol class="ft-import-steps mb-3">
+            <li>Use un archivo <strong>.xlsx</strong> (Excel).</li>
+            <li>La <strong>primera fila</strong> debe ser el encabezado (nombres de columna).</li>
+            <li>Desde la fila 2, una línea por producto.</li>
+            <li>El <strong>SKU</strong> debe existir ya en el catálogo de productos.</li>
+          </ol>
+
+          <p class="small fw-semibold mb-2">Columnas obligatorias (fila 1)</p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered ft-import-table mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Columna A</th>
+                  <th>Columna B</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <code>sku</code><br>
+                    <span class="text-muted small">o <code>codigo</code>, <code>código</code>, <code>clave</code></span>
+                  </td>
+                  <td>
+                    <code>cantidad</code><br>
+                    <span class="text-muted small">o <code>quantity</code>, <code>existencia</code>, <code>stock</code></span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <p class="small fw-semibold mb-2">Ejemplo (como debe verse)</p>
+          <div class="table-responsive mb-3">
+            <table class="table table-sm table-bordered ft-import-table mb-0">
+              <thead>
+                <tr class="table-success">
+                  <th>sku</th>
+                  <th>cantidad</th>
+                </tr>
+              </thead>
+              <tbody class="font-monospace small">
+                <tr><td>TORN-001</td><td>120</td></tr>
+                <tr><td>CLAV-2</td><td>500</td></tr>
+                <tr><td>PINT-BLANCA</td><td>24.5</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="ft-import-notes small text-muted">
+            <p class="mb-2"><strong>Modo «Fijar existencia»:</strong> el número del Excel queda como existencia total en {{ write_store.name }} (ej. tenía 100 y pone 120 → queda 120).</p>
+            <p class="mb-2"><strong>Modo «Sumar al existente»:</strong> se suma al stock actual (ej. tenía 100 y pone 20 → queda 120).</p>
+            <p class="mb-0">Filas vacías o sin SKU se ignoran. Cantidades negativas no se permiten.</p>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-7">
+      <form method="post" enctype="multipart/form-data" class="ft-form card ft-form-card ft-form-card-accent shadow-sm">
+        {% csrf_token %}
+        {% include "core/partials/ft_form_errors.html" with form=form %}
+        <div class="ft-form-body ft-import-form-body">
+          <p class="ft-form-section-title"><i class="bi bi-upload"></i> Subir archivo</p>
+          <div class="ft-import-form-fields">
+            {% include "core/partials/ft_field.html" with field=form.file %}
+            <div class="ft-field ft-field-radio{% if form.mode.errors %} ft-field-invalid{% endif %}">
+              <fieldset class="ft-radio-group">
+                <legend class="ft-label mb-2">
+                  {{ form.mode.label }}<span class="ft-required" aria-hidden="true">*</span>
+                </legend>
+                {% for choice in form.mode %}
+                  <label class="ft-radio-option" for="{{ choice.id_for_label }}">
+                    {{ choice.tag }}
+                    <span>{{ choice.choice_label }}</span>
+                  </label>
+                {% endfor %}
+              </fieldset>
+              {% for error in form.mode.errors %}
+                <p class="ft-field-error"><i class="bi bi-exclamation-circle"></i> {{ error }}</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="ft-form-actions d-flex flex-wrap gap-2">
+          <button class="btn btn-primary" type="submit">
+            <i class="bi bi-upload me-1"></i> Importar
+          </button>
+          <a class="btn btn-outline-secondary" href="{% url 'stock_list' %}">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

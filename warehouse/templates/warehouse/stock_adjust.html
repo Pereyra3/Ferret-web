@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+{% block title %}Ajuste inventario{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Ajuste de inventario</h1>
+    <p class="ft-page-lead">Cantidad positiva para entrada y negativa para salida (merma, corrección).</p>
+  </div>
+</header>
+
+<form method="post" class="ft-form card ft-form-card ft-form-card-accent">
+  {% csrf_token %}
+  {% include "core/partials/ft_form_errors.html" with form=form %}
+  <div class="ft-form-body">
+    <p class="ft-form-section-title"><i class="bi bi-sliders"></i> Movimiento</p>
+    <div class="ft-form-grid">
+      {% for field in form %}
+        {% include "core/partials/ft_field.html" with field=field %}
+      {% endfor %}
+    </div>
+  </div>
+  <div class="ft-form-actions">
+    <button class="btn btn-warning" type="submit"><i class="bi bi-arrow-left-right me-1"></i> Aplicar ajuste</button>
+  </div>
+</form>
+{% endblock %}

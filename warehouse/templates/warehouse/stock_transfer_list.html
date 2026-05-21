@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+{% block title %}Transferencias{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Transferencias entre tiendas</h1>
+    <p class="ft-page-lead">
+      Las solicitudes quedan <strong>pendientes</strong> hasta que un encargado de la tienda destino
+      las acepte o las rechace.
+    </p>
+  </div>
+  <div class="ft-page-actions">
+    {% if perms.warehouse.add_stocktransfer %}
+    <a href="{% url 'stock_transfer_create' %}"><i class="bi bi-plus-lg"></i> Nueva solicitud</a>
+    {% endif %}
+    <a href="{% url 'stock_list' %}"><i class="bi bi-clipboard-data"></i> Inventario</a>
+  </div>
+</header>
+
+<section class="mb-4">
+  <h2 class="h5 mb-3"><i class="bi bi-inbox"></i> Por recibir en sus tiendas</h2>
+  {% if incoming_pending %}
+  <div class="table-responsive card shadow-sm">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Origen</th>
+          <th>Destino</th>
+          <th>Solicitó</th>
+          <th>Fecha</th>
+          <th>Líneas</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in incoming_pending %}
+        <tr>
+          <td>{{ t.pk }}</td>
+          <td>{{ t.from_store.name }}</td>
+          <td>{{ t.to_store.name }}</td>
+          <td>{{ t.user.username }}</td>
+          <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+          <td>
+            <ul class="mb-0 small">
+              {% for line in t.lines.all %}
+              <li>{{ line.product.sku }} × {{ line.quantity }}</li>
+              {% endfor %}
+            </ul>
+            {% if t.notes %}<span class="text-muted small d-block">{{ t.notes }}</span>{% endif %}
+          </td>
+          <td class="text-nowrap">
+            {% if t.may_review %}
+            <form method="post" action="{% url 'stock_transfer_accept' t.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-success">Aceptar</button>
+            </form>
+            <form method="post" action="{% url 'stock_transfer_reject' t.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">Rechazar</button>
+            </form>
+            {% else %}
+            <span class="text-muted small">Sin permiso en destino</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted">No hay transferencias pendientes por recibir.</p>
+  {% endif %}
+</section>
+
+<section>
+  <h2 class="h5 mb-3"><i class="bi bi-send"></i> Enviadas desde sus tiendas (pendientes)</h2>
+  {% if outgoing_pending %}
+  <div class="table-responsive card shadow-sm">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Origen → Destino</th>
+          <th>Fecha</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in outgoing_pending %}
+        <tr>
+          <td>{{ t.pk }}</td>
+          <td>{{ t.from_store.name }} → {{ t.to_store.name }}</td>
+          <td>{{ t.created_at|date:"d/m/Y H:i" }}</td>
+          <td><span class="badge text-bg-warning">Pendiente de aceptación</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="text-muted">No hay envíos pendientes.</p>
+  {% endif %}
+</section>
+{% endblock %}

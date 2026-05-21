@@ -1,0 +1,137 @@
+{% extends "core/base.html" %}
+{% load money_tags %}
+{% block title %}Cobrar venta #{{ sale.id }}{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Cobrar venta #{{ sale.id }}</h1>
+    <p class="ft-page-lead">Revise el detalle, indique el pago y confirme. Se imprimirá el ticket automáticamente.</p>
+  </div>
+  <div class="ft-page-actions">
+    <a href="{% url 'sale_edit' sale.pk %}"><i class="bi bi-pencil"></i> Editar líneas</a>
+    <a href="{% url 'sale_list' %}">Cancelar</a>
+  </div>
+</header>
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Detalle de la venta</div>
+      <div class="table-responsive">
+        <table class="table table-sm mb-0 ft-lines-table">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th class="text-end">Cant.</th>
+              <th class="text-end">P. unit.</th>
+              <th class="text-end">Importe</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for line in lines %}
+            <tr>
+              <td>
+                <span class="text-muted small">{{ line.product.sku }}</span><br>
+                {{ line.product.name }}
+              </td>
+              <td class="text-end">{{ line.quantity }}</td>
+              <td class="text-end">{{ line.unit_price|mxn }}</td>
+              <td class="text-end fw-semibold">{{ line.line_total|mxn }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="table-light">
+              <th colspan="3" class="text-end">Total a cobrar</th>
+              <th class="text-end fs-5" id="checkout-total" data-total="{{ total }}">{{ total|mxn }}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      {% if sale.notes %}
+      <div class="card-footer small text-muted">
+        <i class="bi bi-chat-left-text me-1"></i> {{ sale.notes }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    <form method="post" class="card shadow-sm ft-form-card border-success border-2">
+      {% csrf_token %}
+      {% include "core/partials/ft_form_errors.html" with form=form %}
+      <div class="card-body">
+        <p class="ft-form-section-title text-success"><i class="bi bi-cash-stack"></i> Cobro</p>
+
+        <div class="mb-3">
+          <label class="form-label" for="{{ form.payment_method.id_for_label }}">{{ form.payment_method.label }}</label>
+          {{ form.payment_method }}
+        </div>
+
+        <div class="mb-3" id="cash-tendered-wrap">
+          <label class="form-label" for="{{ form.amount_tendered.id_for_label }}">{{ form.amount_tendered.label }}</label>
+          {{ form.amount_tendered }}
+        </div>
+
+        <div class="p-4 rounded bg-light text-center mb-3">
+          <div class="small text-muted mb-1">Cambio a entregar</div>
+          <div class="display-4 fw-bold text-success" id="change-display">0.00</div>
+        </div>
+
+        <button type="submit" class="btn btn-success btn-lg w-100">
+          <i class="bi bi-check-circle me-1"></i> Confirmar cobro e imprimir ticket
+        </button>
+        <p class="small text-muted text-center mt-2 mb-0">
+          Al confirmar se descuenta inventario y se abre la impresión del ticket.
+        </p>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var totalEl = document.getElementById("checkout-total");
+  var total = parseFloat(totalEl.getAttribute("data-total")) || 0;
+  var paymentSelect = document.querySelector(".js-payment-method");
+  var tenderedInput = document.querySelector(".js-amount-tendered");
+  var changeDisplay = document.getElementById("change-display");
+  var cashWrap = document.getElementById("cash-tendered-wrap");
+
+  function parseMoney(s) {
+    if (typeof parseMxnInput === "function") return parseMxnInput(s);
+    var n = parseFloat(String(s).replace(/,/g, "").replace("$", ""));
+    return isFinite(n) ? n : 0;
+  }
+
+  function displayMoney(n) {
+    if (typeof formatMxn === "function") return formatMxn(n);
+    return Number(n).toFixed(2);
+  }
+
+  function updateChange() {
+    if (!paymentSelect || paymentSelect.value !== "cash") {
+      changeDisplay.textContent = "—";
+      if (cashWrap) cashWrap.classList.remove("d-none");
+      cashWrap && (cashWrap.style.opacity = "0.5");
+      return;
+    }
+    if (cashWrap) cashWrap.style.opacity = "1";
+    var tendered = tenderedInput ? parseMoney(tenderedInput.value) : 0;
+    var change = Math.max(0, tendered - total);
+    changeDisplay.textContent = displayMoney(change);
+    changeDisplay.classList.toggle("text-danger", tendered > 0 && tendered < total);
+    changeDisplay.classList.toggle("text-success", tendered >= total);
+  }
+
+  if (paymentSelect) paymentSelect.addEventListener("change", updateChange);
+  if (tenderedInput) {
+    tenderedInput.addEventListener("input", updateChange);
+    tenderedInput.focus();
+  }
+  updateChange();
+})();
+</script>
+{% endblock %}

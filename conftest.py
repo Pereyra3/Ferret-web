@@ -4,14 +4,13 @@ from decimal import Decimal
 
 import pytest
 
-from store_ops.models import (
+from core.models import Store
+from sales.models import Sale, SaleLine
+from warehouse.models import (
     Product,
     Purchase,
     PurchaseLine,
-    Sale,
-    SaleLine,
     StockLevel,
-    Store,
     Supplier,
     SupplierPayment,
 )
@@ -19,8 +18,6 @@ from store_ops.models import (
 
 @pytest.fixture
 def create_user(django_user_model):
-    """Create a Django user with a known password."""
-
     def _create_user(username="testuser", password="password"):
         return django_user_model.objects.create_user(
             username=username,
@@ -32,13 +29,14 @@ def create_user(django_user_model):
 
 @pytest.fixture
 def create_store():
-    """Create a store; default code matches DEFAULT_STORE_CODE (principal)."""
-
     def _create_store(**kwargs):
         defaults = {
             "name": "Test Store",
             "code": "principal",
             "is_default": True,
+            "location": "Calle Test 1",
+            "phone": "55 0000 0000",
+            "rfc": "TST010101TST",
         }
         defaults.update(kwargs)
         return Store.objects.create(**defaults)
@@ -75,13 +73,21 @@ def create_product():
 
 
 @pytest.fixture
-def store_ops_setup(create_user, create_store, create_supplier, create_product):
-    """
-    Baseline data: user, default store, supplier, product, and stock.
-    Returns a dict of common instances.
-    """
+def store_ops_setup(create_user, create_store, create_supplier, create_product, db):
+    """Baseline data: user, store, supplier, product, stock (Gerente permissions)."""
+    from django.core.management import call_command
+
+    call_command("setup_roles")
     user = create_user()
+    from django.contrib.auth.models import Group
+
+    from core.roles import GROUP_GERENTE
+
+    user.groups.set([Group.objects.get(name=GROUP_GERENTE)])
+    user.is_staff = True
+    user.save()
     store = create_store()
+    store.assigned_users.add(user)
     supplier = create_supplier()
     product = create_product()
     stock = StockLevel.objects.create(
@@ -106,8 +112,6 @@ def authenticated_client(client, store_ops_setup):
 
 @pytest.fixture
 def create_confirmed_sale(store_ops_setup, create_user):
-    """Factory for a confirmed sale with one line."""
-
     def _create_confirmed_sale(
         *,
         quantity=Decimal("2"),
@@ -134,11 +138,7 @@ def create_confirmed_sale(store_ops_setup, create_user):
 
 @pytest.fixture
 def create_purchase(store_ops_setup):
-    def _create_purchase(
-        *,
-        quantity=Decimal("10"),
-        unit_cost=Decimal("5.00"),
-    ):
+    def _create_purchase(*, quantity=Decimal("10"), unit_cost=Decimal("5.00")):
         data = store_ops_setup
         purchase = Purchase.objects.create(
             store=data["store"],
