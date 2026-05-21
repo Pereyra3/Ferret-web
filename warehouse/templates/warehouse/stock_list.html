@@ -1,0 +1,170 @@
+{% extends "core/base.html" %}
+{% block title %}
+  {% if suggested_only %}Inventario sugerido{% elif low_only %}Inventario — stock bajo{% else %}Inventario{% endif %}
+{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>
+      {% if suggested_only %}
+        Inventario sugerido al máximo
+      {% elif low_only %}
+        Productos con stock bajo
+      {% else %}
+        Existencias por tienda
+      {% endif %}
+    </h1>
+    <p class="ft-page-lead">
+      {% if suggested_only %}
+        Cantidad a comprar o ingresar por producto para alcanzar la existencia máxima configurada.
+      {% elif low_only %}
+        Solo productos en o por debajo del mínimo de reorden configurado.
+      {% else %}
+        Cantidades en <strong>{{ store_scope_label|default:"las tiendas seleccionadas" }}</strong> (mínimo y máximo por producto).
+      {% endif %}
+    </p>
+  </div>
+  <div class="ft-page-actions d-flex flex-wrap gap-2">
+    {% if suggested_only %}
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'print_stock_suggested' %}{{ filter_query }}{% if filter_query %}&{% else %}?{% endif %}auto=1" target="_blank" rel="noopener">
+        <i class="bi bi-printer"></i> Imprimir ticket
+      </a>
+      <a href="{% url 'stock_list' %}{{ filter_query }}"><i class="bi bi-list-ul"></i> Ver todo el inventario</a>
+    {% elif low_only %}
+      <a href="{% url 'stock_list' %}{{ filter_query }}"><i class="bi bi-list-ul"></i> Ver todo el inventario</a>
+    {% else %}
+      <a href="{% url 'stock_list' %}{% if filter_query %}{{ filter_query }}&low=1{% else %}?low=1{% endif %}"><i class="bi bi-exclamation-triangle"></i> Solo stock bajo</a>
+      <a class="btn btn-primary btn-sm" href="{% url 'stock_list' %}{% if filter_query %}{{ filter_query }}&suggested=1{% else %}?suggested=1{% endif %}">
+        <i class="bi bi-cart-plus"></i> Inventario sugerido al máximo
+      </a>
+    {% endif %}
+    {% if perms.warehouse.change_stocklevel %}
+    <a href="{% url 'stock_adjust' %}"><i class="bi bi-sliders"></i> Ajuste manual</a>
+    <a href="{% url 'stock_import' %}"><i class="bi bi-file-earmark-spreadsheet"></i> Importar Excel</a>
+    {% endif %}
+    {% if perms.warehouse.view_stocktransfer %}
+    <a href="{% url 'stock_transfer_list' %}"><i class="bi bi-inbox"></i> Transferencias</a>
+    {% endif %}
+    {% if perms.warehouse.add_stocktransfer %}
+    <a href="{% url 'stock_transfer_create' %}"><i class="bi bi-arrow-left-right"></i> Nueva transferencia</a>
+    {% endif %}
+  </div>
+</header>
+
+<form method="get" class="card shadow-sm mb-3 p-3">
+  {% if low_only %}<input type="hidden" name="low" value="1">{% endif %}
+  {% if suggested_only %}<input type="hidden" name="suggested" value="1">{% endif %}
+  <div class="row g-2 align-items-end">
+    <div class="col-sm-5 col-md-4">
+      <label class="form-label mb-1" for="filter-department">Departamento</label>
+      <select class="form-select form-select-sm" id="filter-department" name="department">
+        <option value="">Todos</option>
+        {% for d in departments %}
+        <option value="{{ d }}"{% if department_filter == d %} selected{% endif %}>{{ d }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-5 col-md-4">
+      <label class="form-label mb-1" for="filter-location">Localización</label>
+      <select class="form-select form-select-sm" id="filter-location" name="location">
+        <option value="">Todas</option>
+        {% for loc in locations %}
+        <option value="{{ loc }}"{% if location_filter == loc %} selected{% endif %}>{{ loc }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto d-flex flex-wrap gap-2">
+      <button class="btn btn-sm btn-primary" type="submit"><i class="bi bi-funnel"></i> Filtrar</button>
+      {% if department_filter or location_filter %}
+      <a class="btn btn-sm btn-outline-secondary" href="{% url 'stock_list' %}{% if low_only %}?low=1{% elif suggested_only %}?suggested=1{% endif %}">Quitar filtros</a>
+      {% endif %}
+    </div>
+  </div>
+</form>
+
+{% if low_only %}
+<div class="alert alert-warning border-0 shadow-sm mb-3" role="status">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  Mostrando <strong>{{ rows|length }}</strong> producto{{ rows|length|pluralize:"s" }} con existencia en o por debajo del mínimo.
+</div>
+{% elif suggested_only %}
+<div class="alert alert-info border-0 shadow-sm mb-3" role="status">
+  <i class="bi bi-cart-plus me-1"></i>
+  {% if rows %}
+    <strong>{{ rows|length }}</strong> producto{{ rows|length|pluralize:"s" }} por debajo del máximo.
+    La columna <strong>Sugerido</strong> es la cantidad a sumar para llegar al tope.
+  {% else %}
+    No hay productos por reponer: todos están en su máximo o no tienen máximo configurado.
+    Edite productos y asigne <strong>Existencia máxima</strong> &gt; 0.
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 ft-lines-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Producto</th>
+          <th>Departamento</th>
+          <th>Localización</th>
+          <th class="text-end">Existencia</th>
+          <th class="text-end">Mínimo</th>
+          <th class="text-end">Máximo</th>
+          {% if suggested_only %}
+          <th class="text-end">Sugerido</th>
+          {% endif %}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        <tr class="{% if suggested_only %}table-info{% elif r.is_low %}table-warning{% endif %}">
+          <td class="text-muted">{{ r.product.sku }}</td>
+          <td>{{ r.product.name }}</td>
+          <td class="text-muted">{% if r.product.department %}{{ r.product.department }}{% else %}—{% endif %}</td>
+          <td class="text-muted">{% if r.product.location %}{{ r.product.location }}{% else %}—{% endif %}</td>
+          <td class="text-end fw-semibold">{{ r.quantity }}</td>
+          <td class="text-end text-muted">{{ r.reorder_min }}</td>
+          <td class="text-end text-muted">{% if r.stock_max %}{{ r.stock_max }}{% else %}—{% endif %}</td>
+          {% if suggested_only %}
+          <td class="text-end fw-bold text-primary">{{ r.suggested }}</td>
+          {% endif %}
+          <td class="text-end">
+            {% if suggested_only %}
+              <span class="badge text-bg-primary">Reponer</span>
+            {% elif r.is_low %}
+              <span class="badge text-bg-warning text-dark">Bajo</span>
+            {% elif r.below_max %}
+              <span class="badge text-bg-secondary">Bajo máx.</span>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="{% if suggested_only %}9{% else %}8{% endif %}" class="text-center text-muted py-4">
+            {% if suggested_only %}
+              Nada que sugerir: stock al máximo o sin tope configurado.
+            {% elif low_only %}
+              No hay productos con stock bajo en este momento.
+            {% else %}
+              Sin movimientos de stock aún.
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+      {% if suggested_only and rows %}
+      <tfoot>
+        <tr class="table-light">
+          <th colspan="7" class="text-end">Total sugerido (unidades)</th>
+          <th class="text-end fw-bold">{{ suggested_total }}</th>
+          <th></th>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

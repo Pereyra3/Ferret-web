@@ -11,5 +11,8 @@ urlpatterns = [
         name="login",
     ),
     path("accounts/logout/", auth_views.LogoutView.as_view(), name="logout"),
-    path("", include("store_ops.urls")),
+    path("", include("core.urls")),
+    path("", include("warehouse.urls")),
+    path("", include("sales.urls")),
+    path("api/store/", include("warehouse.api.urls", namespace="warehouse_api")),
 ]

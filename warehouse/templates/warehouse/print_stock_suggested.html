@@ -1,0 +1,44 @@
+{% extends "core/ticket_print_base.html" %}
+{% block title %}Ticket — inventario sugerido{% endblock %}
+{% block ticket %}
+<header class="ticket-header">
+  <h1>INVENTARIO SUGERIDO</h1>
+  <p>{{ store.name }}</p>
+  <p>{{ printed_at|date:"d/m/Y H:i" }}</p>
+</header>
+<hr class="ticket-rule">
+
+{% if rows %}
+<p style="margin:0 0 8px;">Productos por debajo del máximo (unidades a reponer):</p>
+{% for r in rows %}
+<div class="ticket-item">
+  <div class="name">{{ r.product.name|truncatechars:32 }}</div>
+  <div class="sku">{{ r.product.sku }}</div>
+  {% if r.product.department or r.product.location %}
+  <div class="sku">
+    {% if r.product.department %}{{ r.product.department }}{% endif %}
+    {% if r.product.department and r.product.location %} · {% endif %}
+    {% if r.product.location %}{{ r.product.location }}{% endif %}
+  </div>
+  {% endif %}
+  <div class="ticket-line">
+    <span class="label">Actual / Máx</span>
+    <span class="value">{{ r.quantity }} / {{ r.stock_max }}</span>
+  </div>
+  <div class="ticket-line">
+    <strong><span class="label">Sugerido</span></strong>
+    <span class="value"><strong>{{ r.suggested }}</strong></span>
+  </div>
+</div>
+{% endfor %}
+<hr class="ticket-rule">
+<div class="ticket-total ticket-line">
+  <span class="label">TOTAL UNIDADES SUGERIDAS</span>
+  <span class="value">{{ suggested_total }}</span>
+</div>
+{% else %}
+<p class="ticket-empty">Sin reposición: stock al máximo o sin tope configurado.</p>
+{% endif %}
+
+<footer class="ticket-footer">Ferretería — inventario sugerido</footer>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% load static money_tags %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Ticket{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'sales/css/ticket_print.css' %}">
+</head>
+<body class="ticket-body">
+  <div class="ticket-actions no-print">
+    <button type="button" onclick="window.print()">Imprimir ticket</button>
+    <a href="javascript:window.close()">Cerrar</a>
+  </div>
+  {% block ticket %}{% endblock %}
+  {% if auto_print %}
+  <script>window.addEventListener("load", function () { window.print(); });</script>
+  {% endif %}
+</body>
+</html>

@@ -11,6 +11,7 @@ venv/
 /exports/
 /staticfiles/
 *.log
+/logs/
 
 # IDE
 .idea/

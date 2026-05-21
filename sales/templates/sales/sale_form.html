@@ -1,0 +1,293 @@
+{% extends "core/base.html" %}
+{% block title %}{% if is_edit %}Venta pendiente #{{ sale.id }}{% else %}Nueva venta{% endif %}{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>{% if is_edit %}Venta pendiente #{{ sale.id }}{% else %}Nueva venta{% endif %}</h1>
+    <p class="ft-page-lead">
+      {% if is_edit %}
+        Agregue o quite productos. El cobro y el cambio se hacen en la pantalla siguiente.
+      {% else %}
+        Escanee productos. Guarde el pedido o pase a <strong>Cobrar / vender</strong> para ver el total y el cambio.
+      {% endif %}
+    </p>
+  </div>
+  <div class="ft-page-actions d-flex flex-wrap gap-2">
+    {% if is_edit %}
+      <a href="{% url 'sale_list' %}"><i class="bi bi-arrow-left"></i> Ventas</a>
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'sale_checkout' sale.pk %}">
+        <i class="bi bi-cash-coin"></i> Ir a cobrar
+      </a>
+    {% endif %}
+  </div>
+</header>
+
+<div class="card ft-scan-card shadow-sm">
+  <div class="card-body">
+    <label for="barcode-scan" class="form-label fw-semibold mb-2">
+      <i class="bi bi-upc-scan me-1 text-secondary"></i> Escanear código (SKU / barras)
+    </label>
+    <div class="input-group input-group-lg ft-scan-input-group">
+      <span class="input-group-text"><i class="bi bi-upc-scan"></i></span>
+      <input type="text" class="form-control" id="barcode-scan" autocomplete="off" placeholder="Enfoque aquí y escanee; Enter añade o suma cantidad">
+    </div>
+    <div id="scan-feedback" class="ft-scan-feedback small mt-2" role="status" aria-live="polite"></div>
+  </div>
+</div>
+
+<form method="post" class="ft-form card ft-form-card ft-form-card-accent" id="sale-form">
+  {% csrf_token %}
+  {% include "core/partials/ft_form_errors.html" with form=form %}
+  <div class="ft-form-body">
+    <p class="ft-form-section-title"><i class="bi bi-chat-left-text"></i> Notas</p>
+    <div class="ft-form-grid">
+      {% for field in form %}
+        {% include "core/partials/ft_field.html" with field=field %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="ft-form-section">
+    <p class="ft-form-section-title"><i class="bi bi-cart3"></i> Líneas</p>
+    {{ formset.management_form }}
+    <div class="ft-lines-panel">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle ft-lines-table mb-0">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th style="width:7rem">Cantidad</th>
+              <th style="width:8rem">Precio unit.</th>
+              <th style="width:8rem" class="text-end">Subtotal</th>
+              <th style="width:3.5rem"></th>
+            </tr>
+          </thead>
+          <tbody id="sale-lines-body">
+          {% if is_edit %}
+            {% for lf in formset %}
+            <tr>
+              <td>
+                <div class="js-line-label ft-line-product-name">{{ lf.instance.product.sku }} — {{ lf.instance.product.name }}</div>
+                {{ lf.id }}{{ lf.product }}
+              </td>
+              <td>{{ lf.quantity }}</td>
+              <td>{{ lf.unit_price }}</td>
+              <td class="text-end js-line-subtotal ft-line-subtotal">0.00</td>
+              <td class="text-center">
+                {{ lf.DELETE }}
+                <button type="button" class="ft-btn-line-remove js-line-remove" title="Quitar línea">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+            {% endfor %}
+          {% endif %}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colspan="3" class="text-end fw-bold">Total</td>
+              <td class="text-end fw-bold ft-line-subtotal" id="sale-grand-total">0.00</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <table class="d-none" aria-hidden="true">
+    <tbody>
+      <tr id="line-empty-template">
+        {% with ef=formset.empty_form %}
+        <td>
+          <div class="js-line-label ft-line-product-name"></div>
+          {{ ef.id }}{{ ef.product }}
+        </td>
+        <td>{{ ef.quantity }}</td>
+        <td>{{ ef.unit_price }}</td>
+        <td class="text-end js-line-subtotal ft-line-subtotal">0.00</td>
+        <td class="text-center">
+          {{ ef.DELETE }}
+          <button type="button" class="ft-btn-line-remove js-line-remove" title="Quitar línea">
+            <i class="bi bi-trash"></i>
+          </button>
+        </td>
+        {% endwith %}
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="ft-form-actions d-flex flex-wrap gap-2">
+    <button class="btn btn-outline-secondary btn-lg" type="submit" name="action" value="draft">
+      <i class="bi bi-bookmark me-1"></i> Guardar pendiente
+    </button>
+    <button class="btn btn-success btn-lg" type="submit" name="action" value="checkout">
+      <i class="bi bi-cash-coin me-1"></i> Cobrar / vender
+    </button>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var lookupBaseUrl = "{% url 'warehouse_api:product_lookup' %}";
+  var tbody = document.getElementById("sale-lines-body");
+  var templateRow = document.getElementById("line-empty-template");
+  var scanInput = document.getElementById("barcode-scan");
+  var feedback = document.getElementById("scan-feedback");
+  var totalFormsInput = document.getElementById("id_lines-TOTAL_FORMS");
+  var initialFormsInput = document.getElementById("id_lines-INITIAL_FORMS");
+  var grandTotalEl = document.getElementById("sale-grand-total");
+  var saleForm = document.getElementById("sale-form");
+
+  function setFeedback(text, kind) {
+    feedback.textContent = text;
+    feedback.className = "ft-scan-feedback small mt-2 ft-" + (kind || "muted");
+  }
+
+  function parseMoney(s) {
+    if (typeof parseMxnInput === "function") return parseMxnInput(s);
+    var n = parseFloat(String(s).replace(/,/g, "").replace("$", ""));
+    return isFinite(n) ? n : 0;
+  }
+
+  function displayMoney(n) {
+    if (typeof formatMxn === "function") return formatMxn(n);
+    return Number(n).toFixed(2);
+  }
+
+  function rowSubtotal(tr) {
+    var q = tr.querySelector(".js-line-qty");
+    var p = tr.querySelector(".js-line-price");
+    if (!q || !p) return 0;
+    return parseMoney(q.value) * parseMoney(p.value);
+  }
+
+  function updateRowSubtotal(tr) {
+    var cell = tr.querySelector(".js-line-subtotal");
+    if (cell) cell.textContent = displayMoney(rowSubtotal(tr));
+  }
+
+  function recalcGrand() {
+    var sum = 0;
+    tbody.querySelectorAll("tr").forEach(function (tr) {
+      var del = tr.querySelector('input[name$="-DELETE"]');
+      if (del && del.checked) return;
+      sum += rowSubtotal(tr);
+    });
+    grandTotalEl.textContent = displayMoney(sum);
+  }
+
+  function renumberRows() {
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll("tr"));
+    rows.forEach(function (tr, i) {
+      tr.querySelectorAll("[name],[id]").forEach(function (el) {
+        if (el.name) el.name = el.name.replace(/lines-\d+-/, "lines-" + i + "-");
+        if (el.id) el.id = el.id.replace(/id_lines-\d+-/, "id_lines-" + i + "-");
+      });
+    });
+    totalFormsInput.value = String(rows.length);
+    if (initialFormsInput) initialFormsInput.value = "0";
+    rows.forEach(updateRowSubtotal);
+    recalcGrand();
+  }
+
+  function findRowByProductId(pid) {
+    var rows = tbody.querySelectorAll("tr");
+    for (var i = 0; i < rows.length; i++) {
+      var hid = rows[i].querySelector('input[name$="-product"]');
+      if (hid && String(hid.value) === String(pid)) {
+        var del = rows[i].querySelector('input[name$="-DELETE"]');
+        if (!del || !del.checked) return rows[i];
+      }
+    }
+    return null;
+  }
+
+  function addOrIncrementLine(data) {
+    var existing = findRowByProductId(data.id);
+    if (existing) {
+      var qtyIn = existing.querySelector(".js-line-qty");
+      qtyIn.value = String(parseMoney(qtyIn.value) + 1);
+      updateRowSubtotal(existing);
+      recalcGrand();
+      setFeedback("Cantidad +1 → " + data.sku, "success");
+      return;
+    }
+    var idx = tbody.querySelectorAll("tr").length;
+    var clone = templateRow.cloneNode(true);
+    clone.removeAttribute("id");
+    clone.querySelectorAll("[name],[id]").forEach(function (el) {
+      if (el.name) el.name = el.name.replace(/__prefix__/g, String(idx));
+      if (el.id) el.id = el.id.replace(/__prefix__/g, String(idx));
+    });
+    var prod = clone.querySelector('input[name$="-product"]');
+    var qty = clone.querySelector(".js-line-qty");
+    var price = clone.querySelector(".js-line-price");
+    var delCb = clone.querySelector('input[name$="-DELETE"]');
+    if (prod) prod.value = String(data.id);
+    if (qty) qty.value = "1";
+    if (price) price.value = parseMoney(data.list_price).toFixed(2);
+    if (delCb) { delCb.checked = false; delCb.classList.add("d-none"); }
+    var lbl = clone.querySelector(".js-line-label");
+    if (lbl) lbl.textContent = data.sku + " — " + data.name;
+    tbody.appendChild(clone);
+    renumberRows();
+    setFeedback("Añadido: " + data.sku, "success");
+  }
+
+  scanInput.addEventListener("keydown", function (e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      var code = scanInput.value.trim();
+      scanInput.value = "";
+      if (!code) return;
+      fetch(lookupBaseUrl + "?code=" + encodeURIComponent(code), {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json", "X-Requested-With": "XMLHttpRequest" },
+      })
+        .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, body: j }; }); })
+        .then(function (res) {
+          if (!res.ok) { setFeedback(res.body.detail || "Error", "error"); return; }
+          addOrIncrementLine(res.body);
+        })
+        .catch(function () { setFeedback("Error de red.", "error"); });
+      scanInput.focus();
+    }
+  });
+
+  tbody.addEventListener("click", function (e) {
+    var btn = e.target.closest(".js-line-remove");
+    if (!btn) return;
+    var tr = btn.closest("tr");
+    var del = tr && tr.querySelector('input[name$="-DELETE"]');
+    if (del) del.checked = true;
+    if (tr) tr.remove();
+    renumberRows();
+  });
+
+  tbody.addEventListener("input", function (e) {
+    if (e.target && (e.target.classList.contains("js-line-qty") || e.target.classList.contains("js-line-price"))) {
+      var tr = e.target.closest("tr");
+      if (tr) { updateRowSubtotal(tr); recalcGrand(); }
+    }
+  });
+
+  saleForm.addEventListener("submit", function () {
+    tbody.querySelectorAll("tr").forEach(function (tr) {
+      var del = tr.querySelector('input[name$="-DELETE"]');
+      if (del && del.checked) tr.remove();
+    });
+    renumberRows();
+  });
+
+  tbody.querySelectorAll("tr").forEach(function (tr) {
+    var del = tr.querySelector('input[name$="-DELETE"]');
+    if (del) del.classList.add("d-none");
+  });
+  renumberRows();
+  scanInput.focus();
+})();
+</script>
+{% endblock %}

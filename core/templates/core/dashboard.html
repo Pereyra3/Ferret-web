@@ -1,0 +1,194 @@
+{% extends "core/base.html" %}
+{% load static money_tags %}
+{% block title %}Ganancias reales — Ferretería{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'core/css/dashboard.css' %}">
+<link rel="stylesheet" href="{% static 'core/css/profit_dashboard.css' %}">
+{% endblock %}
+{% block content %}
+<header class="ft-page-header ft-dash-header">
+  <div>
+    <p class="mb-1"><a href="{% url 'home' %}" class="text-decoration-none small text-muted">← Inicio</a></p>
+    <h1>Ganancias reales</h1>
+    <p class="ft-page-lead">
+      Compara <strong>ingresos por ventas</strong> contra <strong>salidas de efectivo</strong> (pagos a proveedores)
+      y contra <strong>compras de mercancía</strong> registradas en el periodo.
+    </p>
+  </div>
+</header>
+
+<form class="ft-dash-range" method="get" id="profitRangeForm">
+  <div class="ft-dash-range-fields">
+    <div>
+      <label for="profit-from">Desde</label>
+      <input type="date" name="from" id="profit-from" value="{{ range_from|date:'Y-m-d' }}">
+    </div>
+    <div>
+      <label for="profit-to">Hasta</label>
+      <input type="date" name="to" id="profit-to" value="{{ range_to|date:'Y-m-d' }}">
+    </div>
+  </div>
+  <button class="btn btn-primary" type="submit"><i class="bi bi-funnel me-1"></i> Aplicar rango</button>
+</form>
+
+<div id="ft-profit-alert" class="ft-dash-alert" role="alert"></div>
+
+<div class="ft-profit-hero {% if net_cash >= 0 %}ft-profit-positive{% else %}ft-profit-negative{% endif %}">
+  <div class="ft-profit-hero-main">
+    <p class="ft-profit-hero-label">Ganancia neta en efectivo</p>
+    <p class="ft-profit-hero-value">{{ net_cash|mxn }}</p>
+    <p class="ft-profit-hero-formula">
+      Ventas {{ sales_total|mxn }} − Pagos proveedor {{ payments_total|mxn }}
+    </p>
+  </div>
+  <div class="ft-profit-hero-side">
+    <div>
+      <span class="text-muted small">Margen sobre ventas</span>
+      <strong>{{ margin_cash|floatformat:1 }}%</strong>
+    </div>
+    <div>
+      <span class="text-muted small">Resultado operativo</span>
+      <strong>{{ net_operating|mxn }}</strong>
+      <span class="d-block small text-muted">Ventas − compras mercancía</span>
+    </div>
+  </div>
+</div>
+
+<div class="ft-kpi-grid ft-profit-kpis">
+  <div class="ft-kpi-card ft-kpi-accent">
+    <div class="ft-kpi-icon"><i class="bi bi-arrow-down-circle"></i></div>
+    <p class="ft-kpi-label">Ingresos (ventas)</p>
+    <p class="ft-kpi-value">{{ sales_total|mxn }}</p>
+    <p class="ft-kpi-sub">ventas confirmadas</p>
+  </div>
+  <div class="ft-kpi-card ft-kpi-out">
+    <div class="ft-kpi-icon"><i class="bi bi-arrow-up-circle"></i></div>
+    <p class="ft-kpi-label">Pagos a proveedor</p>
+    <p class="ft-kpi-value">{{ payments_total|mxn }}</p>
+    <p class="ft-kpi-sub">efectivo saliente</p>
+  </div>
+  <div class="ft-kpi-card">
+    <div class="ft-kpi-icon"><i class="bi bi-truck"></i></div>
+    <p class="ft-kpi-label">Compras registradas</p>
+    <p class="ft-kpi-value">{{ purchases_total|mxn }}</p>
+    <p class="ft-kpi-sub">costo mercancía recibida</p>
+  </div>
+  <div class="ft-kpi-card {% if net_operating >= 0 %}ft-kpi-profit{% else %}ft-kpi-loss{% endif %}">
+    <div class="ft-kpi-icon"><i class="bi bi-piggy-bank"></i></div>
+    <p class="ft-kpi-label">Margen operativo</p>
+    <p class="ft-kpi-value">{{ net_operating|mxn }}</p>
+    <p class="ft-kpi-sub">{{ margin_operating|floatformat:1 }}% sobre ventas</p>
+  </div>
+</div>
+
+<div class="row g-3 mb-3 ft-dash-charts">
+  <div class="col-lg-8 ft-chart-col-main">
+    <div class="ft-chart-card">
+      <div class="ft-chart-card-header">
+        <span><i class="bi bi-bar-chart-line"></i> Ventas vs pagos vs ganancia</span>
+        <div class="btn-group btn-group-sm ft-gran-group" role="group">
+          <button type="button" class="btn btn-outline-secondary profit-gran-btn active" data-gran="day">Día</button>
+          <button type="button" class="btn btn-outline-secondary profit-gran-btn" data-gran="month">Mes</button>
+          <button type="button" class="btn btn-outline-secondary profit-gran-btn" data-gran="year">Año</button>
+        </div>
+      </div>
+      <div class="ft-chart-body">
+        <div class="ft-chart-canvas-host ft-chart-canvas-host--lg">
+          <div class="ft-chart-empty" data-empty-for="profitCompareChart">
+            <i class="bi bi-graph-up"></i>
+            <span>Sin movimientos en el rango.</span>
+          </div>
+          <canvas id="profitCompareChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4 ft-chart-col-side">
+    <div class="ft-chart-card">
+      <div class="ft-chart-card-header">
+        <span><i class="bi bi-graph-up-arrow"></i> Ganancia acumulada (efectivo)</span>
+      </div>
+      <div class="ft-chart-body">
+        <div class="ft-chart-canvas-host ft-chart-canvas-host--lg">
+          <div class="ft-chart-empty" data-empty-for="profitLineChart">
+            <i class="bi bi-cash-coin"></i>
+            <span>Sin datos en el rango.</span>
+          </div>
+          <canvas id="profitLineChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="ft-profit-note card border-0 shadow-sm mb-4">
+  <div class="card-body small text-muted">
+    <p class="mb-1"><strong>Ganancia en efectivo</strong> = ventas del periodo menos pagos a proveedores del mismo periodo (flujo de caja).</p>
+    <p class="mb-0"><strong>Resultado operativo</strong> = ventas menos compras de mercancía registradas (puede diferir si paga deuda anterior o compra a crédito).</p>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="ft-recent-card">
+      <div class="ft-recent-header">
+        <h2><i class="bi bi-receipt me-1 text-secondary"></i> Ventas del rango</h2>
+        <a href="{% url 'sale_list' %}" class="btn btn-sm btn-outline-secondary">Ver todas</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover ft-recent-table mb-0">
+          <thead><tr><th>#</th><th>Fecha</th><th class="text-end">Total</th></tr></thead>
+          <tbody>
+          {% for s in recent_sales %}
+            <tr>
+              <td>{{ s.id }}</td>
+              <td>{{ s.created_at|date:"d/m/Y H:i" }}</td>
+              <td class="text-end ft-sale-total">{{ s.total|mxn }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-3">Sin ventas en el rango.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="ft-recent-card">
+      <div class="ft-recent-header">
+        <h2><i class="bi bi-cash-stack me-1 text-secondary"></i> Pagos a proveedor</h2>
+        {% if perms.warehouse.add_supplierpayment %}
+        <a href="{% url 'payment_create' %}" class="btn btn-sm btn-outline-secondary">Registrar pago</a>
+        {% endif %}
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover ft-recent-table mb-0">
+          <thead><tr><th>Proveedor</th><th>Fecha</th><th class="text-end">Monto</th></tr></thead>
+          <tbody>
+          {% for p in recent_payments %}
+            <tr>
+              <td>{{ p.supplier.name }}</td>
+              <td>{{ p.created_at|date:"d/m/Y" }}</td>
+              <td class="text-end ft-payment-out">−{{ p.amount|mxn }}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-3">Sin pagos en el rango.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+window.FT_PROFIT = {
+  rangeFrom: "{{ range_from|date:'Y-m-d' }}",
+  rangeTo: "{{ range_to|date:'Y-m-d' }}",
+  apiUrl: "{% url 'api_profit_series' %}"
+};
+</script>
+<script src="{% static 'core/js/profit_dashboard.js' %}" defer></script>
+{% endblock %}

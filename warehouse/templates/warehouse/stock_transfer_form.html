@@ -1,0 +1,66 @@
+{% extends "core/base.html" %}
+{% block title %}Transferencia entre tiendas{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Transferencia de material</h1>
+    <p class="ft-page-lead">
+      Envía material a otra sucursal. El stock se mueve cuando un encargado de la tienda destino
+      <strong>acepte</strong> la solicitud (permiso de cambio en transferencias).
+    </p>
+  </div>
+</header>
+
+<form method="post" class="ft-form card ft-form-card" id="transfer-form">
+  {% csrf_token %}
+  {% include "core/partials/ft_form_errors.html" with form=form %}
+  <div class="ft-form-body">
+    <p class="ft-form-section-title"><i class="bi bi-arrow-left-right"></i> Tiendas</p>
+    <div class="ft-form-grid">
+      {% for field in form %}
+        {% include "core/partials/ft_field.html" with field=field %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="ft-form-section">
+    <p class="ft-form-section-title"><i class="bi bi-list-ul"></i> Productos</p>
+    {{ formset.management_form }}
+    <div class="ft-lines-panel">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle ft-lines-table mb-0">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th style="width:8rem">Cantidad</th>
+              <th style="width:3.5rem"></th>
+            </tr>
+          </thead>
+          <tbody data-ft-lines-body>
+          {% for f in formset %}
+            <tr data-ft-line>
+              <td>{{ f.id }}{{ f.product }}</td>
+              <td>{{ f.quantity }}</td>
+              <td class="text-center">
+                {% if f.DELETE %}<span class="d-none">{{ f.DELETE }}</span>{% endif %}
+                <button type="button" class="ft-btn-line-remove" data-ft-remove-line title="Quitar línea" aria-label="Quitar línea">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <button type="button" class="btn btn-sm btn-outline-secondary mt-2" data-ft-add-line>
+        <i class="bi bi-plus-lg"></i> Agregar línea
+      </button>
+    </div>
+  </div>
+
+  <div class="ft-form-actions">
+    <button class="btn btn-primary" type="submit"><i class="bi bi-send me-1"></i> Enviar solicitud</button>
+    <a class="btn btn-outline-secondary" href="{% url 'stock_transfer_list' %}">Ver pendientes</a>
+  </div>
+</form>
+{% endblock %}
