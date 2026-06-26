@@ -86,6 +86,40 @@ On **other PCs** on the LAN, add the same line with the **store PC’s IP** inst
 
 ---
 
+## 4b. Firewall + IP when moving the PC to the store
+
+The app is reached from other PCs by the name `ferreteriapena`, **not** by a fixed IP,
+so the IP can change without breaking anything. Two one-time steps on the store network:
+
+1. **Allow inbound port 80** (run **PowerShell as Administrator**):
+
+   ```powershell
+   cd C:\Ferret-web
+   powershell -ExecutionPolicy Bypass -File .\scripts\firewall-puerto80.ps1
+   ```
+
+2. **Mark the store network as Private** (more permissive than Public) — Administrator:
+
+   ```powershell
+   Get-NetConnectionProfile
+   Set-NetConnectionProfile -InterfaceAlias "<NombreDeLaRed>" -NetworkCategory Private
+   ```
+
+`.env` uses `DJANGO_ALLOWED_HOSTS=*` for the trusted local store LAN, so a new IP needs
+no edit. Recommended: reserve a **fixed IP** for this PC in the router (DHCP reservation)
+so the address shown to other PCs stays stable.
+
+On **each** other PC, add one line to its hosts file (`C:\Windows\System32\drivers\etc\hosts`,
+edit as Administrator), using the **store PC's current IP**:
+
+```
+192.168.1.50 ferreteriapena
+```
+
+Then open **http://ferreteriapena/** from any of those PCs.
+
+---
+
 ## 5. Port 80 (standard HTTP)
 
 Windows only allows port **80** for processes started with **administrator** rights.

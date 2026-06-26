@@ -270,16 +270,24 @@ DEFAULT_STORE_CODE = os.environ.get("DEFAULT_STORE_CODE", "principal")
 
 # so cookie-secure / SSL-redirect flags are intentionally left disabled.
 
-CSRF_TRUSTED_ORIGINS = [
+# Trust the store hostname for cross-origin POSTs regardless of the LAN IP.
+# Extra origins can be added via DJANGO_CSRF_TRUSTED_ORIGINS (comma separated).
+_csrf_env = [
+    o.strip()
+    for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
 
+_csrf_hosts = [
     origin
-
     for host in ALLOWED_HOSTS
-
     for origin in (f"http://{host}", f"http://{host}:80")
+    if host not in ("127.0.0.1", "localhost", "*")
+]
 
-    if host not in ("127.0.0.1", "localhost")
-
+CSRF_TRUSTED_ORIGINS = _csrf_env + _csrf_hosts + [
+    "http://ferreteriapena",
+    "http://ferreteriapena:80",
 ]
 
 if not DEBUG:
