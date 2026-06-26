@@ -104,6 +104,8 @@ MIDDLEWARE = [
 
     "django.middleware.security.SecurityMiddleware",
 
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+
     "django.contrib.sessions.middleware.SessionMiddleware",
 
     "django.middleware.common.CommonMiddleware",
@@ -214,13 +216,31 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 STATICFILES_DIRS = [
 
-    BASE_DIR / "core" / "static",
-
-    BASE_DIR / "warehouse" / "static",
-
-    BASE_DIR / "sales" / "static",
+    d
+    for d in (
+        BASE_DIR / "core" / "static",
+        BASE_DIR / "warehouse" / "static",
+        BASE_DIR / "sales" / "static",
+    )
+    if d.exists()
 
 ]
+
+STORAGES = {
+
+    "default": {
+
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+
+    },
+
+    "staticfiles": {
+
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+
+    },
+
+}
 
 
 
@@ -241,5 +261,35 @@ EOD_EXPORT_DIR = Path(os.environ.get("EOD_EXPORT_DIR", str(BASE_DIR / "exports")
 
 
 DEFAULT_STORE_CODE = os.environ.get("DEFAULT_STORE_CODE", "principal")
+
+
+
+# Production hardening (active when DJANGO_DEBUG=0).
+
+# This deployment serves plain HTTP over the local store network (no HTTPS),
+
+# so cookie-secure / SSL-redirect flags are intentionally left disabled.
+
+CSRF_TRUSTED_ORIGINS = [
+
+    origin
+
+    for host in ALLOWED_HOSTS
+
+    for origin in (f"http://{host}", f"http://{host}:80")
+
+    if host not in ("127.0.0.1", "localhost")
+
+]
+
+if not DEBUG:
+
+    SESSION_COOKIE_HTTPONLY = True
+
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+    X_FRAME_OPTIONS = "DENY"
+
+    USE_X_FORWARDED_HOST = False
 
 
