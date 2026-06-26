@@ -16,6 +16,12 @@ CAJERO_PERMISSIONS = (
     "sales.add_saleline",
     "sales.change_saleline",
     "sales.view_saleline",
+    "sales.add_quote",
+    "sales.change_quote",
+    "sales.view_quote",
+    "sales.add_quoteline",
+    "sales.change_quoteline",
+    "sales.view_quoteline",
     "warehouse.view_product",
     "warehouse.view_stocklevel",
 )

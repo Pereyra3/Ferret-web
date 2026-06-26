@@ -43,6 +43,33 @@ def resolve_cash_payment(total: Decimal, payment_method: str, amount_tendered) -
     return tendered, tendered - total
 
 
+def resolve_mixed_payment(total: Decimal, card_amount, amount_tendered) -> tuple:
+    """Split a mixed payment into card + cash. Returns (card, tendered, change)."""
+    if card_amount is None:
+        raise ValueError("Indique el monto a cobrar con tarjeta.")
+    card = Decimal(card_amount)
+    if card <= 0:
+        raise ValueError(
+            "El monto con tarjeta debe ser mayor a cero. Si todo es en efectivo, elija 'Efectivo'."
+        )
+    if card >= total:
+        raise ValueError(
+            f"El monto con tarjeta ({format_mxn(card)}) debe ser menor al total "
+            f"({format_mxn(total)}). Si todo es con tarjeta, elija 'Tarjeta'."
+        )
+
+    cash_due = total - card
+    if amount_tendered is None:
+        raise ValueError("Indique el efectivo recibido para calcular el cambio.")
+    tendered = Decimal(amount_tendered)
+    if tendered < cash_due:
+        raise ValueError(
+            f"Efectivo insuficiente: la parte en efectivo es {format_mxn(cash_due)} "
+            f"y recibió {format_mxn(tendered)}."
+        )
+    return card, tendered, tendered - cash_due
+
+
 def save_sale_draft(request, store, *, sale=None):
     form = SaleForm(request.POST, instance=sale)
     formset = SaleLineFormSet(request.POST, instance=sale, prefix="lines")
@@ -66,14 +93,31 @@ def save_sale_draft(request, store, *, sale=None):
     return sale_obj, form, formset
 
 
-def confirm_sale_payment(sale, payment_method: str, amount_tendered_raw) -> None:
+def confirm_sale_payment(
+    sale, payment_method: str, amount_tendered_raw, card_amount_raw=None
+) -> None:
     total = sale.total()
-    tendered, change = resolve_cash_payment(total, payment_method, amount_tendered_raw)
+    if payment_method == Sale.PaymentMethod.MIXED:
+        card, tendered, change = resolve_mixed_payment(
+            total, card_amount_raw, amount_tendered_raw
+        )
+    else:
+        card = None
+        tendered, change = resolve_cash_payment(total, payment_method, amount_tendered_raw)
     sale.payment_method = payment_method
+    sale.card_amount = card
     sale.amount_tendered = tendered
     sale.change_amount = change
     sale.status = Sale.Status.CONFIRMED
-    sale.save(update_fields=["payment_method", "amount_tendered", "change_amount", "status"])
+    sale.save(
+        update_fields=[
+            "payment_method",
+            "card_amount",
+            "amount_tendered",
+            "change_amount",
+            "status",
+        ]
+    )
 
 
 def sale_form_context(form, formset, sale=None):

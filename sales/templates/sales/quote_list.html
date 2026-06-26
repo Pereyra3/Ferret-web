@@ -1,0 +1,62 @@
+{% extends "core/base.html" %}
+{% load money_tags %}
+{% block title %}Presupuestos{% endblock %}
+{% block content %}
+<header class="ft-page-header">
+  <div>
+    <h1>Presupuestos</h1>
+    <p class="ft-page-lead">Notas de venta / cotizaciones. No afectan inventario ni caja.</p>
+  </div>
+  <div class="ft-page-actions">
+    {% if perms.sales.add_quote %}
+    <a class="btn btn-success" href="{% url 'quote_create' %}"><i class="bi bi-plus-lg me-1"></i> Nuevo presupuesto</a>
+    {% endif %}
+  </div>
+</header>
+
+<div class="card shadow-sm">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 ft-lines-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          {% if show_store_column %}<th>Tienda</th>{% endif %}
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Vigencia</th>
+          <th class="text-end">Total</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for q in quotes %}
+        <tr>
+          <td>{{ q.id }}</td>
+          {% if show_store_column %}<td>{{ q.store.name }}</td>{% endif %}
+          <td>{{ q.created_at|date:"d/m/Y H:i" }}</td>
+          <td>{{ q.customer_name|default:"—" }}</td>
+          <td>{% if q.valid_until %}{{ q.valid_until|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+          <td class="text-end fw-semibold">{{ q.total|mxn }}</td>
+          <td class="text-end text-nowrap">
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'quote_edit' q.pk %}">Editar</a>
+            <a class="btn btn-sm btn-outline-secondary" href="{% url 'print_quote' q.pk %}" target="_blank" rel="noopener">
+              <i class="bi bi-printer"></i>
+            </a>
+            {% if perms.sales.add_sale %}
+            <form method="post" action="{% url 'quote_convert_sale' q.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-primary" title="Convertir a venta">
+                <i class="bi bi-cart-check"></i>
+              </button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="{% if show_store_column %}7{% else %}6{% endif %}" class="text-center text-muted py-4">Sin presupuestos.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

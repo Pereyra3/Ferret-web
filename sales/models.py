@@ -54,6 +54,14 @@ class Sale(models.Model):
         blank=True,
         help_text="Change returned (cash sales).",
     )
+    card_amount = models.DecimalField(
+        "Card amount",
+        max_digits=14,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Portion charged to card on mixed payments.",
+    )
     stock_applied = models.BooleanField("Stock applied", default=False)
 
     class Meta:
@@ -82,6 +90,13 @@ class Sale(models.Model):
     def is_draft(self) -> bool:
         return self.status == self.Status.DRAFT
 
+    @property
+    def cash_due(self):
+        """Portion to be covered with cash on a mixed payment."""
+        if self.payment_method == self.PaymentMethod.MIXED and self.card_amount is not None:
+            return self.total() - self.card_amount
+        return None
+
 
 class SaleLine(models.Model):
     sale = models.ForeignKey(
@@ -102,6 +117,69 @@ class SaleLine(models.Model):
         db_table = "store_ops_saleline"
         verbose_name = "Sale line"
         verbose_name_plural = "Sale lines"
+
+    @property
+    def line_total(self):
+        return Decimal(self.quantity) * Decimal(self.unit_price)
+
+
+class Quote(models.Model):
+    """Presupuesto / nota de venta. Documento informativo: NO afecta inventario,
+    dinero ni cierres de día. Solo sirve para cotizar al cliente."""
+
+    store = models.ForeignKey("core.Store", on_delete=models.PROTECT, verbose_name="Store")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        verbose_name="User",
+    )
+    created_at = models.DateTimeField("Date", auto_now_add=True)
+    customer_name = models.CharField("Customer", max_length=200, blank=True)
+    valid_until = models.DateField("Valid until", null=True, blank=True)
+    notes = models.CharField("Notes", max_length=500, blank=True)
+
+    class Meta:
+        db_table = "store_ops_quote"
+        verbose_name = "Quote"
+        verbose_name_plural = "Quotes"
+        ordering = ["-created_at"]
+
+    def __str__(self) -> str:
+        return f"Quote #{self.pk} {self.store}"
+
+    def total(self):
+        line_total = ExpressionWrapper(
+            F("quantity") * F("unit_price"),
+            output_field=DecimalField(max_digits=20, decimal_places=4),
+        )
+        agg = self.lines.aggregate(
+            s=Coalesce(
+                Sum(line_total),
+                Value(0, output_field=DecimalField(max_digits=20, decimal_places=4)),
+            )
+        )
+        return Decimal(agg["s"] or 0)
+
+
+class QuoteLine(models.Model):
+    quote = models.ForeignKey(
+        Quote,
+        related_name="lines",
+        on_delete=models.CASCADE,
+        verbose_name="Quote",
+    )
+    product = models.ForeignKey(
+        "warehouse.Product",
+        on_delete=models.PROTECT,
+        verbose_name="Product",
+    )
+    quantity = models.DecimalField("Quantity", max_digits=14, decimal_places=3)
+    unit_price = models.DecimalField("Unit price", max_digits=14, decimal_places=2)
+
+    class Meta:
+        db_table = "store_ops_quoteline"
+        verbose_name = "Quote line"
+        verbose_name_plural = "Quote lines"
 
     @property
     def line_total(self):

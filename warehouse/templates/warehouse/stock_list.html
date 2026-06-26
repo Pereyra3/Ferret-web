@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load money_tags %}
 {% block title %}
   {% if suggested_only %}Inventario sugerido{% elif low_only %}Inventario — stock bajo{% else %}Inventario{% endif %}
 {% endblock %}
@@ -125,11 +126,11 @@
           <td>{{ r.product.name }}</td>
           <td class="text-muted">{% if r.product.department %}{{ r.product.department }}{% else %}—{% endif %}</td>
           <td class="text-muted">{% if r.product.location %}{{ r.product.location }}{% else %}—{% endif %}</td>
-          <td class="text-end fw-semibold">{{ r.quantity }}</td>
-          <td class="text-end text-muted">{{ r.reorder_min }}</td>
-          <td class="text-end text-muted">{% if r.stock_max %}{{ r.stock_max }}{% else %}—{% endif %}</td>
+          <td class="text-end fw-semibold">{{ r.quantity|qty }}</td>
+          <td class="text-end text-muted">{{ r.reorder_min|qty }}</td>
+          <td class="text-end text-muted">{% if r.stock_max %}{{ r.stock_max|qty }}{% else %}—{% endif %}</td>
           {% if suggested_only %}
-          <td class="text-end fw-bold text-primary">{{ r.suggested }}</td>
+          <td class="text-end fw-bold text-primary">{{ r.suggested|qty }}</td>
           {% endif %}
           <td class="text-end">
             {% if suggested_only %}
@@ -159,7 +160,7 @@
       <tfoot>
         <tr class="table-light">
           <th colspan="7" class="text-end">Total sugerido (unidades)</th>
-          <th class="text-end fw-bold">{{ suggested_total }}</th>
+          <th class="text-end fw-bold">{{ suggested_total|qty }}</th>
           <th></th>
         </tr>
       </tfoot>
