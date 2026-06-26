@@ -75,6 +75,13 @@
     <p>Registro en mostrador — uso diario.</p>
   </a>
   {% endif %}
+  {% if perms.sales.add_quote %}
+  <a class="ft-tile" href="{% url 'quote_create' %}">
+    <i class="bi bi-file-earmark-text"></i>
+    <h2>Nuevo presupuesto</h2>
+    <p>Cotización para el cliente — no es venta.</p>
+  </a>
+  {% endif %}
   {% if perms.warehouse.add_purchase %}
   <a class="ft-tile" href="{% url 'purchase_create' %}">
     <i class="bi bi-truck"></i>

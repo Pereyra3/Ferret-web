@@ -37,7 +37,24 @@
   <span class="label">TOTAL</span>
   <span class="value">{{ sale.total|mxn }}</span>
 </div>
-{% if sale.amount_tendered is not None %}
+{% if sale.payment_method == 'mixed' %}
+<div class="ticket-line">
+  <span class="label">Tarjeta</span>
+  <span class="value">{{ sale.card_amount|mxn }}</span>
+</div>
+<div class="ticket-line">
+  <span class="label">Efectivo</span>
+  <span class="value">{{ sale.cash_due|mxn }}</span>
+</div>
+<div class="ticket-line">
+  <span class="label">Efectivo recibido</span>
+  <span class="value">{{ sale.amount_tendered|mxn }}</span>
+</div>
+<div class="ticket-line">
+  <strong><span class="label">CAMBIO</span></strong>
+  <span class="value"><strong>{{ sale.change_amount|mxn }}</strong></span>
+</div>
+{% elif sale.amount_tendered is not None %}
 <div class="ticket-line">
   <span class="label">Recibido</span>
   <span class="value">{{ sale.amount_tendered|mxn }}</span>

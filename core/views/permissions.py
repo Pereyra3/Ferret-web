@@ -43,6 +43,22 @@ class CanRunEodMixin(FerreteriaPermissionMixin):
     permission_required = "sales.add_dayclose"
 
 
+class CanViewQuotesMixin(FerreteriaPermissionMixin):
+    permission_required = "sales.view_quote"
+
+
+class CanAddQuoteMixin(FerreteriaPermissionMixin):
+    permission_required = "sales.add_quote"
+
+
+class CanChangeQuoteMixin(FerreteriaPermissionMixin):
+    permission_required = "sales.change_quote"
+
+
+class CanConvertQuoteToSaleMixin(FerreteriaPermissionMixin):
+    permission_required = ("sales.add_sale", "sales.view_quote")
+
+
 class CanViewProductsMixin(FerreteriaPermissionMixin):
     permission_required = "warehouse.view_product"
 

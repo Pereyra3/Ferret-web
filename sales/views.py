@@ -10,13 +10,25 @@ from django.views.generic import FormView, ListView, TemplateView, UpdateView
 from core.money import format_mxn
 from core.views.base import BaseView
 from core.views.permissions import (
+    CanAddQuoteMixin,
     CanAddSaleMixin,
+    CanChangeQuoteMixin,
     CanChangeSaleMixin,
+    CanConvertQuoteToSaleMixin,
     CanRunEodMixin,
+    CanViewQuotesMixin,
     CanViewSalesMixin,
 )
-from sales.forms import EodForm, SaleCheckoutForm, SaleForm, SaleLineFormSet
-from sales.models import DayClose, Sale
+from sales.forms import (
+    EodForm,
+    QuoteForm,
+    QuoteLineFormSet,
+    SaleCheckoutForm,
+    SaleForm,
+    SaleLineFormSet,
+)
+from sales.models import DayClose, Quote, Sale
+from sales.quote_workflow import quote_form_context, quote_to_sale_draft, save_quote
 from sales.sale_workflow import (
     confirm_sale_payment,
     sale_form_context,
@@ -145,6 +157,7 @@ class SaleCheckoutView(CanChangeSaleMixin, BaseView, UpdateView):
                 sale,
                 form.cleaned_data["payment_method"],
                 form.cleaned_data.get("amount_tendered"),
+                form.cleaned_data.get("card_amount"),
             )
         except ValueError as exc:
             messages.error(self.request, str(exc))
@@ -182,6 +195,131 @@ class PrintSaleView(CanViewSalesMixin, BaseView, TemplateView):
         context["printed_at"] = timezone.localtime()
         context["auto_print"] = self.request.GET.get("auto") in ("1", "true", "yes")
         return context
+
+
+class QuoteListView(CanViewQuotesMixin, BaseView, ListView):
+    model = Quote
+    template_name = "sales/quote_list.html"
+    context_object_name = "quotes"
+    page_type = "Presupuestos"
+    paginate_by = None
+
+    def get_queryset(self):
+        return (
+            self.filter_by_stores(Quote.objects.all())
+            .select_related("store")
+            .prefetch_related("lines")
+            .order_by("-created_at")[:200]
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["show_store_column"] = self.show_store_column()
+        return context
+
+
+class QuoteDraftView(BaseView, View):
+    """Create or edit a quote (presupuesto): customer + line formset."""
+
+    template_name = "sales/quote_form.html"
+    page_type = "Presupuesto"
+
+    def get_quote(self):
+        return None
+
+    def get_page_title(self):
+        return "Nuevo presupuesto"
+
+    def get(self, request, *args, **kwargs):
+        quote = self.get_quote()
+        form = QuoteForm(instance=quote)
+        formset = QuoteLineFormSet(instance=quote, prefix="lines")
+        context = quote_form_context(form, formset, quote=quote)
+        context["type"] = self.page_type
+        context["title"] = self.get_page_title()
+        return self.render(context)
+
+    def post(self, request, *args, **kwargs):
+        quote = self.get_quote()
+        quote_obj, form, formset = save_quote(request, self.get_store(), quote=quote)
+        if quote_obj is None:
+            context = quote_form_context(form, formset, quote=quote)
+            context["type"] = self.page_type
+            context["title"] = self.get_page_title()
+            return self.render(context)
+
+        action = request.POST.get("action", "save")
+        if action == "print":
+            messages.success(request, f"Presupuesto #{quote_obj.pk} guardado.")
+            url = reverse("print_quote", kwargs={"pk": quote_obj.pk})
+            return redirect(f"{url}?auto=1")
+
+        if quote:
+            messages.success(request, "Cambios guardados.")
+        else:
+            messages.success(request, f"Presupuesto #{quote_obj.pk} guardado.")
+        return redirect("quote_edit", pk=quote_obj.pk)
+
+    def render(self, context):
+        from django.shortcuts import render
+
+        return render(self.request, self.template_name, context)
+
+
+class QuoteCreateView(CanAddQuoteMixin, QuoteDraftView):
+    page_title = "Nuevo presupuesto"
+
+
+class QuoteUpdateView(CanChangeQuoteMixin, QuoteDraftView):
+    page_title = "Editar presupuesto"
+
+    def get_quote(self):
+        return get_object_or_404(
+            self.filter_by_stores(Quote.objects.all()),
+            pk=self.kwargs["pk"],
+        )
+
+    def get_page_title(self):
+        return f"Presupuesto #{self.kwargs['pk']}"
+
+
+class PrintQuoteView(CanViewQuotesMixin, BaseView, TemplateView):
+    template_name = "sales/print_quote.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        quote = get_object_or_404(
+            self.filter_by_stores(Quote.objects.all())
+            .select_related("user", "store")
+            .prefetch_related("lines__product"),
+            pk=self.kwargs["pk"],
+        )
+        context["store"] = quote.store
+        context["quote"] = quote
+        context["lines"] = quote.lines.select_related("product")
+        context["printed_at"] = timezone.localtime()
+        context["auto_print"] = self.request.GET.get("auto") in ("1", "true", "yes")
+        return context
+
+
+class QuoteConvertToSaleView(CanConvertQuoteToSaleMixin, BaseView, View):
+    """Create a draft sale from a quote's lines."""
+
+    def post(self, request, *args, **kwargs):
+        quote = get_object_or_404(
+            self.filter_by_stores(Quote.objects.prefetch_related("lines")),
+            pk=kwargs["pk"],
+        )
+        if not quote.lines.exists():
+            messages.error(request, "El presupuesto no tiene líneas para convertir en venta.")
+            return redirect("quote_edit", pk=quote.pk)
+
+        sale = quote_to_sale_draft(quote, request.user, quote.store)
+        messages.success(
+            request,
+            f"Venta #{sale.pk} creada desde presupuesto #{quote.pk}. Revise y cobre cuando esté listo.",
+        )
+        return redirect("sale_edit", pk=sale.pk)
 
 
 class EodView(CanRunEodMixin, BaseView, FormView):

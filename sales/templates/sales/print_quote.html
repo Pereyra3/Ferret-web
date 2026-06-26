@@ -1,0 +1,49 @@
+{% extends "core/ticket_print_base.html" %}
+{% load money_tags %}
+{% block title %}Presupuesto #{{ quote.id }}{% endblock %}
+{% block ticket %}
+<header class="ticket-store">
+  <p class="ticket-store__name">{{ store.name }}</p>
+  {% if store.location %}<p>{{ store.location }}</p>{% endif %}
+  {% if store.phone %}<p>Tel: {{ store.phone }}</p>{% endif %}
+  {% if store.rfc %}<p>RFC: {{ store.rfc }}</p>{% endif %}
+</header>
+<hr class="ticket-rule">
+
+<header class="ticket-meta">
+  <p><strong>PRESUPUESTO #{{ quote.id }}</strong></p>
+  <p>{{ quote.created_at|date:"d/m/Y H:i" }}</p>
+  {% if quote.customer_name %}<p>Cliente: {{ quote.customer_name }}</p>{% endif %}
+  <p>Atendió: {{ quote.user.get_full_name|default:quote.user.username }}</p>
+</header>
+<hr class="ticket-rule">
+
+{% for line in lines %}
+<div class="ticket-item">
+  <div class="name">{{ line.product.name|truncatechars:28 }}</div>
+  <div class="sku">{{ line.product.sku }}</div>
+  <div class="ticket-line">
+    <span class="label">{{ line.quantity }} × {{ line.unit_price|mxn }}</span>
+    <span class="value">{{ line.line_total|mxn }}</span>
+  </div>
+</div>
+{% endfor %}
+
+<hr class="ticket-rule">
+<div class="ticket-total ticket-line">
+  <span class="label">TOTAL</span>
+  <span class="value">{{ quote.total|mxn }}</span>
+</div>
+
+{% if quote.valid_until %}
+<div class="ticket-line">
+  <span class="label">Vigencia hasta</span>
+  <span class="value">{{ quote.valid_until|date:"d/m/Y" }}</span>
+</div>
+{% endif %}
+{% if quote.notes %}
+<p class="ticket-meta">{{ quote.notes }}</p>
+{% endif %}
+
+<footer class="ticket-footer">Presupuesto — no es comprobante de venta</footer>
+{% endblock %}

@@ -57,7 +57,7 @@
   </div>
 
   <div class="col-lg-5">
-    <form method="post" class="card shadow-sm ft-form-card border-success border-2">
+    <form method="post" class="card shadow-sm ft-form-card border-success border-2" id="checkout-form" data-sale-create-url="{% url 'sale_create' %}">
       {% csrf_token %}
       {% include "core/partials/ft_form_errors.html" with form=form %}
       <div class="card-body">
@@ -66,6 +66,24 @@
         <div class="mb-3">
           <label class="form-label" for="{{ form.payment_method.id_for_label }}">{{ form.payment_method.label }}</label>
           {{ form.payment_method }}
+        </div>
+
+        <div class="alert alert-secondary py-2 px-3 mb-3 d-none" id="mixed-help" role="note">
+          <i class="bi bi-info-circle me-1"></i>
+          Cobro en dos partes: escriba cuánto va con <strong>tarjeta</strong> y el sistema
+          calcula lo que falta en <strong>efectivo</strong>.
+        </div>
+
+        <div class="mb-3 d-none" id="card-amount-wrap">
+          <label class="form-label" for="{{ form.card_amount.id_for_label }}">
+            <i class="bi bi-credit-card-2-front me-1"></i> {{ form.card_amount.label }}
+          </label>
+          {{ form.card_amount }}
+        </div>
+
+        <div class="alert alert-info py-2 px-3 mb-3 d-none d-flex justify-content-between align-items-center" id="cash-due-wrap">
+          <span><i class="bi bi-cash me-1"></i> A cobrar en efectivo</span>
+          <strong class="fs-5" id="cash-due-display">0.00</strong>
         </div>
 
         <div class="mb-3" id="cash-tendered-wrap">
@@ -82,7 +100,7 @@
           <i class="bi bi-check-circle me-1"></i> Confirmar cobro e imprimir ticket
         </button>
         <p class="small text-muted text-center mt-2 mb-0">
-          Al confirmar se descuenta inventario y se abre la impresión del ticket.
+          El ticket se abre en una pestaña nueva para imprimir y aquí se inicia otra venta.
         </p>
       </div>
     </form>
@@ -96,9 +114,14 @@
   var totalEl = document.getElementById("checkout-total");
   var total = parseFloat(totalEl.getAttribute("data-total")) || 0;
   var paymentSelect = document.querySelector(".js-payment-method");
+  var cardInput = document.querySelector(".js-card-amount");
   var tenderedInput = document.querySelector(".js-amount-tendered");
   var changeDisplay = document.getElementById("change-display");
   var cashWrap = document.getElementById("cash-tendered-wrap");
+  var cardWrap = document.getElementById("card-amount-wrap");
+  var cashDueWrap = document.getElementById("cash-due-wrap");
+  var cashDueDisplay = document.getElementById("cash-due-display");
+  var mixedHelp = document.getElementById("mixed-help");
 
   function parseMoney(s) {
     if (typeof parseMxnInput === "function") return parseMxnInput(s);
@@ -111,27 +134,94 @@
     return Number(n).toFixed(2);
   }
 
-  function updateChange() {
-    if (!paymentSelect || paymentSelect.value !== "cash") {
-      changeDisplay.textContent = "—";
-      if (cashWrap) cashWrap.classList.remove("d-none");
-      cashWrap && (cashWrap.style.opacity = "0.5");
-      return;
-    }
-    if (cashWrap) cashWrap.style.opacity = "1";
-    var tendered = tenderedInput ? parseMoney(tenderedInput.value) : 0;
-    var change = Math.max(0, tendered - total);
-    changeDisplay.textContent = displayMoney(change);
-    changeDisplay.classList.toggle("text-danger", tendered > 0 && tendered < total);
-    changeDisplay.classList.toggle("text-success", tendered >= total);
+  function show(el) { if (el) el.classList.remove("d-none"); }
+  function hide(el) { if (el) el.classList.add("d-none"); }
+
+  function setChange(value, enough) {
+    changeDisplay.textContent = displayMoney(Math.max(0, value));
+    changeDisplay.classList.toggle("text-danger", !enough);
+    changeDisplay.classList.toggle("text-success", enough);
   }
 
-  if (paymentSelect) paymentSelect.addEventListener("change", updateChange);
+  function update() {
+    var method = paymentSelect ? paymentSelect.value : "cash";
+
+    if (method === "mixed") {
+      show(cardWrap); show(cashDueWrap); show(cashWrap); show(mixedHelp);
+      if (cashWrap) cashWrap.style.opacity = "1";
+      var card = cardInput ? parseMoney(cardInput.value) : 0;
+      var cashDue = Math.max(0, total - card);
+      if (cashDueDisplay) cashDueDisplay.textContent = displayMoney(cashDue);
+      var tenderedM = tenderedInput ? parseMoney(tenderedInput.value) : 0;
+      setChange(tenderedM - cashDue, tenderedM >= cashDue);
+      return;
+    }
+
+    hide(cardWrap); hide(cashDueWrap); hide(mixedHelp);
+
+    if (method === "cash") {
+      show(cashWrap);
+      if (cashWrap) cashWrap.style.opacity = "1";
+      var tendered = tenderedInput ? parseMoney(tenderedInput.value) : 0;
+      setChange(tendered - total, tendered >= total);
+      return;
+    }
+
+    // card or transfer: no cash, no change
+    if (cashWrap) cashWrap.style.opacity = "0.5";
+    changeDisplay.textContent = "—";
+    changeDisplay.classList.remove("text-danger", "text-success");
+  }
+
+  if (paymentSelect) paymentSelect.addEventListener("change", function () {
+    update();
+    if (paymentSelect.value === "mixed" && cardInput) {
+      cardInput.focus();
+    } else if (paymentSelect.value === "cash" && tenderedInput) {
+      tenderedInput.focus();
+    }
+  });
+  if (cardInput) cardInput.addEventListener("input", update);
   if (tenderedInput) {
-    tenderedInput.addEventListener("input", updateChange);
+    tenderedInput.addEventListener("input", update);
     tenderedInput.focus();
   }
-  updateChange();
+  update();
+
+  var EPS = 0.005;
+
+  function isPaymentValid() {
+    var method = paymentSelect ? paymentSelect.value : "cash";
+    if (method === "cash") {
+      return tenderedInput && parseMoney(tenderedInput.value) >= total - EPS;
+    }
+    if (method === "mixed") {
+      var card = cardInput ? parseMoney(cardInput.value) : 0;
+      if (card <= 0 || card >= total) return false;
+      var cashDue = total - card;
+      return tenderedInput && parseMoney(tenderedInput.value) >= cashDue - EPS;
+    }
+    return true; // tarjeta / transferencia
+  }
+
+  var form = document.getElementById("checkout-form");
+  var saleCreateUrl = form ? form.getAttribute("data-sale-create-url") : null;
+  if (form) {
+    form.addEventListener("submit", function () {
+      if (isPaymentValid()) {
+        // Ticket en pestaña nueva; la pestaña actual vuelve a "Nueva venta".
+        form.target = "_blank";
+        if (saleCreateUrl) {
+          setTimeout(function () {
+            window.location.assign(saleCreateUrl);
+          }, 250);
+        }
+      } else {
+        // Datos incompletos: enviar en la misma pestaña para mostrar el error del servidor.
+        form.target = "";
+      }
+    });
+  }
 })();
 </script>
 {% endblock %}

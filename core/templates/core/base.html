@@ -106,6 +106,22 @@
         </a>
       </li>
       {% endif %}
+      {% if perms.sales.view_quote %}
+      <li>
+        <a href="{% url 'quote_list' %}" class="{% if name == 'quote_list' %}ft-active{% endif %}">
+          <i class="bi bi-file-earmark-text"></i>
+          <span>Presupuestos</span>
+        </a>
+      </li>
+      {% endif %}
+      {% if perms.sales.add_quote %}
+      <li>
+        <a href="{% url 'quote_create' %}" class="{% if name == 'quote_create' %}ft-active{% endif %}">
+          <i class="bi bi-file-earmark-plus"></i>
+          <span>Nuevo presupuesto</span>
+        </a>
+      </li>
+      {% endif %}
       {% if perms.warehouse.add_purchase %}
       <li>
         <a href="{% url 'purchase_create' %}" class="{% if name == 'purchase_create' %}ft-active{% endif %}">

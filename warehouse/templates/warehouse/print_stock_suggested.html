@@ -1,4 +1,5 @@
 {% extends "core/ticket_print_base.html" %}
+{% load money_tags %}
 {% block title %}Ticket — inventario sugerido{% endblock %}
 {% block ticket %}
 <header class="ticket-header">
@@ -23,18 +24,18 @@
   {% endif %}
   <div class="ticket-line">
     <span class="label">Actual / Máx</span>
-    <span class="value">{{ r.quantity }} / {{ r.stock_max }}</span>
+    <span class="value">{{ r.quantity|qty }} / {{ r.stock_max|qty }}</span>
   </div>
   <div class="ticket-line">
     <strong><span class="label">Sugerido</span></strong>
-    <span class="value"><strong>{{ r.suggested }}</strong></span>
+    <span class="value"><strong>{{ r.suggested|qty }}</strong></span>
   </div>
 </div>
 {% endfor %}
 <hr class="ticket-rule">
 <div class="ticket-total ticket-line">
   <span class="label">TOTAL UNIDADES SUGERIDAS</span>
-  <span class="value">{{ suggested_total }}</span>
+  <span class="value">{{ suggested_total|qty }}</span>
 </div>
 {% else %}
 <p class="ticket-empty">Sin reposición: stock al máximo o sin tope configurado.</p>
